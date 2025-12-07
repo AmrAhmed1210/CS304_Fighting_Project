@@ -21,7 +21,7 @@ public class Power {
         active = true;
         isPlayer1 = isP1;
         texture = tex;
-        velX = isP1 ? 5 : -5;
+        velX = isP1 ? 1 : -1;
         hitTimer = 0;
     }
 
@@ -54,9 +54,9 @@ public class Power {
     public boolean collidesWith(Player p) {
         if (!active || hitTimer > 0) return false;
 
-        boolean collision = x < p.x + 180 &&
+        boolean collision = x < p.x + 200 &&
                 x + 80 > p.x &&
-                y < p.y + 180 &&
+                y < p.y + 200 &&
                 y + 80 > p.y;
 
         if (collision) {

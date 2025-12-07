@@ -12,6 +12,7 @@ Simple 2D fighting game with OpenGL.
 - **W**: Move Up
 - **S**: Move Down
 - **F**: Attack/Shoot Power Ball
+- **G**: Spacial Attack/Shoot Power Ball
 
 ### Player 2 (Blue Character)
 - **←**: Move Left
@@ -19,6 +20,7 @@ Simple 2D fighting game with OpenGL.
 - **↑**: Move Up  
 - **↓**: Move Down
 - **Enter**: Attack/Shoot Power Ball
+- **Shift**: Spacial Attack/Shoot Power Ball
 
 ## 🚀 Quick Start
 

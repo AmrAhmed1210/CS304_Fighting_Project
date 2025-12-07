@@ -44,18 +44,29 @@ public class Game implements GLEventListener, KeyListener {
     public void display(GLAutoDrawable d) {
         GL gl = d.getGL();
         gl.glClear(GL.GL_COLOR_BUFFER_BIT);
+        gl.glColor3f(1, 1, 1);
 
         loader.draw(gl, bg, 0, 0, 1280, 720);
 
         p1.update();
         p2.update();
 
-        if (p1.powerActive && p2.hitTest(p1.powerX, p1.powerY)) {
-            p1.powerActive = false;
+        float hitRange = 30;
+
+        if (p1.powerActive) {
+            float px = p1.powerX + 35;
+            float py = p1.powerY + 35;
+            if (p2.hitTest(px, py)) {
+                p1.powerActive = false;
+            }
         }
 
-        if (p2.powerActive && p1.hitTest(p2.powerX, p2.powerY)) {
-            p2.powerActive = false;
+        if (p2.powerActive) {
+            float px = p2.powerX + 35;
+            float py = p2.powerY + 35;
+            if (p1.hitTest(px, py)) {
+                p2.powerActive = false;
+            }
         }
 
         p1.draw(gl, loader);
@@ -74,12 +85,14 @@ public class Game implements GLEventListener, KeyListener {
         if (k == KeyEvent.VK_W) p1.up = true;
         if (k == KeyEvent.VK_S) p1.down = true;
         if (k == KeyEvent.VK_F) p1.attack = true;
+        if (k == KeyEvent.VK_G) p1.special = true;
 
         if (k == KeyEvent.VK_LEFT) p2.left = true;
         if (k == KeyEvent.VK_RIGHT) p2.right = true;
         if (k == KeyEvent.VK_UP) p2.up = true;
         if (k == KeyEvent.VK_DOWN) p2.down = true;
         if (k == KeyEvent.VK_ENTER) p2.attack = true;
+        if (k == KeyEvent.VK_SHIFT) p2.special = true;
     }
 
     public void keyReleased(KeyEvent e) {
@@ -89,12 +102,14 @@ public class Game implements GLEventListener, KeyListener {
         if (k == KeyEvent.VK_W) p1.up = false;
         if (k == KeyEvent.VK_S) p1.down = false;
         if (k == KeyEvent.VK_F) p1.attack = false;
+        if (k == KeyEvent.VK_G) p1.special = false;
 
         if (k == KeyEvent.VK_LEFT) p2.left = false;
         if (k == KeyEvent.VK_RIGHT) p2.right = false;
         if (k == KeyEvent.VK_UP) p2.up = false;
         if (k == KeyEvent.VK_DOWN) p2.down = false;
         if (k == KeyEvent.VK_ENTER) p2.attack = false;
+        if (k == KeyEvent.VK_SHIFT) p2.special = false;
     }
 
     public void start() {
