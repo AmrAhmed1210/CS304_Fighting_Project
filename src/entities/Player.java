@@ -16,6 +16,15 @@ public class Player {
     public float powerX, powerY;
     public float powerSpeed = 2;
     public boolean isPlayer1;
+    public int health;
+    public int specialBar;
+    public boolean isAlive;
+
+    // ثوابت
+    public static final int MAX_HEALTH = 100;
+    public static final int MAX_SPECIAL = 100;
+    private long lastSpecialUpdate;
+
 
     PlayerAnimator anim;
 
@@ -147,4 +156,33 @@ public class Player {
     public boolean hitTest(float px, float py) {
         return px > x && px < x + 180 && py > y && py < y + 180;
     }
+    public void updateSpecialBar() {
+        long currentTime = System.currentTimeMillis();
+        long elapsed = currentTime - lastSpecialUpdate;
+
+        if (specialBar < MAX_SPECIAL && elapsed > 100) { // كل 100ms
+            specialBar = Math.min(MAX_SPECIAL, specialBar + 2);
+            lastSpecialUpdate = currentTime;
+        }
+    }
+
+    public boolean useSpecialAttack() {
+        if (specialBar >= MAX_SPECIAL) {
+            specialBar = 0;
+            lastSpecialUpdate = System.currentTimeMillis();
+            return true;
+        }
+        return false;
+    }
+
+    public void takeDamage(int damage) {
+        if (isAlive) {
+            health -= damage;
+            if (health <= 0) {
+                health = 0;
+                isAlive = false;
+            }
+        }
+    }
+
 }
