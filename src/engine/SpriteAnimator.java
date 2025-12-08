@@ -39,8 +39,7 @@ public class SpriteAnimator {
                     frames[i].setTexParameteri(GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR);
                 }
             }
-        } catch (Exception e) {
-        }
+        } catch (Exception e) {}
     }
 
     public Texture next() {
@@ -49,10 +48,16 @@ public class SpriteAnimator {
             timer = 0;
             index = (index + 1) % frames.length;
         }
+        if (frames[index] == null) {
+            return frames[0];
+        }
         return frames[index];
     }
 
     public Texture getCurrentFrame() {
+        if (frames[index] == null) {
+            return frames[0];
+        }
         return frames[index];
     }
 

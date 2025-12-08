@@ -7,7 +7,6 @@ import javax.media.opengl.*;
 import com.sun.opengl.util.j2d.TextRenderer;
 import javax.swing.*;
 import java.awt.event.*;
-import com.sun.opengl.util.texture.Texture;
 import java.awt.Font;
 
 public class Game implements GLEventListener, KeyListener {
@@ -18,7 +17,6 @@ public class Game implements GLEventListener, KeyListener {
     String winnerName = "";
     int winTimer = 0;
     TextRenderer textRenderer;
-
     public void init(GLAutoDrawable d) {
         GL gl = d.getGL();
         gl.glEnable(GL.GL_TEXTURE_2D);
@@ -61,30 +59,46 @@ public class Game implements GLEventListener, KeyListener {
             p1.update();
             p2.update();
 
-            if (p1.powerActive) {
-                float px = p1.powerX + 35;
-                float py = p1.powerY + 35;
-                if (p2.hitTest(px, py)) {
-                    p1.powerActive = false;
-                    p2.takeDamage(p1.specialActive ? 20 : 10, p1.specialActive);
-
+            for (int i = p1.powers.size() - 1; i >= 0; i--) {
+                Player.PlayerPower power = p1.powers.get(i);
+                if (!power.active) {
+                    p1.powers.remove(i);
+                    continue;
+                }
+                float pw = power.isSpecial ? 100f : 70f;
+                float ph = pw;
+                if (power.x < p2.x + 180 && power.x + pw > p2.x && power.y < p2.y + 180 && power.y + ph > p2.y) {
+                    p1.powers.remove(i);
+                    p2.takeDamage(power.isSpecial ? 20 : 10, power.isSpecial);
                     if (p2.defeated) {
                         gameOver = true;
                         winnerName = p1.playerName;
+                        p1.powers.clear();
+                        p2.powers.clear();
+                        p1.left = p1.right = p1.up = p1.down = false;
+                        p2.left = p2.right = p2.up = p2.down = false;
                     }
                 }
             }
 
-            if (p2.powerActive) {
-                float px = p2.powerX + 35;
-                float py = p2.powerY + 35;
-                if (p1.hitTest(px, py)) {
-                    p2.powerActive = false;
-                    p1.takeDamage(p2.specialActive ? 20 : 10, p2.specialActive);
-
+            for (int i = p2.powers.size() - 1; i >= 0; i--) {
+                Player.PlayerPower power = p2.powers.get(i);
+                if (!power.active) {
+                    p2.powers.remove(i);
+                    continue;
+                }
+                float pw = power.isSpecial ? 100f : 70f;
+                float ph = pw;
+                if (power.x < p1.x + 180 && power.x + pw > p1.x && power.y < p1.y + 180 && power.y + ph > p1.y) {
+                    p2.powers.remove(i);
+                    p1.takeDamage(power.isSpecial ? 20 : 10, power.isSpecial);
                     if (p1.defeated) {
                         gameOver = true;
                         winnerName = p2.playerName;
+                        p1.powers.clear();
+                        p2.powers.clear();
+                        p1.left = p1.right = p1.up = p1.down = false;
+                        p2.left = p2.right = p2.up = p2.down = false;
                     }
                 }
             }
@@ -131,13 +145,10 @@ public class Game implements GLEventListener, KeyListener {
     }
 
     private void drawBarLabels(GL gl) {
-
-
         com.sun.opengl.util.j2d.TextRenderer tr = new com.sun.opengl.util.j2d.TextRenderer(new java.awt.Font("Arial", java.awt.Font.BOLD, 14));
 
         int barWidth = 200;
         int barHeight = 25;
-
 
         int p1BarX = 1280 - 50 - barWidth;
         int p1HealthBarY = 100;
@@ -149,7 +160,6 @@ public class Game implements GLEventListener, KeyListener {
 
         tr.beginRendering(1280, 720);
         tr.setColor(1f, 1f, 1f, 1f);
-
 
         java.util.function.BiConsumer<java.lang.String, java.awt.Point> drawCentered = (label, pos) -> {
             int textApproxWidth = label.length() * 8;
@@ -286,4 +296,3 @@ public class Game implements GLEventListener, KeyListener {
         new Game().start();
     }
 }
-

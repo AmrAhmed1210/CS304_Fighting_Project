@@ -20,31 +20,21 @@ public class TextureLoader {
         }
     }
 
-    public static Texture loadDirect(String path) {
-        try {
-            File file = new File(path);
-            if (!file.exists()) {
-                return null;
-            }
-            return TextureIO.newTexture(file, true);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
     public void draw(GL gl, Texture t, float x, float y, float w, float h) {
         if (t == null) return;
 
-        t.enable();
-        t.bind();
+        try {
+            t.enable();
+            t.bind();
 
-        gl.glBegin(GL.GL_QUADS);
-        gl.glTexCoord2f(0, 0); gl.glVertex2f(x, y);
-        gl.glTexCoord2f(1, 0); gl.glVertex2f(x + w, y);
-        gl.glTexCoord2f(1, 1); gl.glVertex2f(x + w, y + h);
-        gl.glTexCoord2f(0, 1); gl.glVertex2f(x, y + h);
-        gl.glEnd();
+            gl.glBegin(GL.GL_QUADS);
+            gl.glTexCoord2f(0, 0); gl.glVertex2f(x, y);
+            gl.glTexCoord2f(1, 0); gl.glVertex2f(x + w, y);
+            gl.glTexCoord2f(1, 1); gl.glVertex2f(x + w, y + h);
+            gl.glTexCoord2f(0, 1); gl.glVertex2f(x, y + h);
+            gl.glEnd();
 
-        t.disable();
+            t.disable();
+        } catch (Exception e) {}
     }
 }
