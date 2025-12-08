@@ -1,6 +1,7 @@
 package entities;
 
 import engine.PlayerAnimator;
+import engine.SpriteAnimator;
 import engine.TextureLoader;
 import com.sun.opengl.util.texture.Texture;
 import javax.media.opengl.GL;
@@ -10,25 +11,41 @@ public class Player {
     public float y = 300;
     public boolean left, right, up, down, attack, special;
     public int attackTimer = 0;
-    public int specialCooldown = 1800;
+    public int specialCooldown = 0;
     public boolean powerActive = false;
     public boolean specialActive = false;
     public float powerX, powerY;
     public float powerSpeed = 2;
     public boolean isPlayer1;
+    public int health = 100;
+    public boolean defeated = false;
+    public SpriteAnimator defeatAnim;
+    public String playerName;
 
     PlayerAnimator anim;
 
-    public Player(PlayerAnimator a, boolean player1) {
+    public Player(PlayerAnimator a, boolean player1, String name) {
         anim = a;
         isPlayer1 = player1;
+        playerName = name;
         x = player1 ? 400 : 800;
+
+        String defeatPath = isPlayer1 ? "sprites/player1/defeat.png" : "sprites/player2/defeat.png";
+        defeatAnim = new SpriteAnimator(defeatPath, 4, 50, 50);
+        specialCooldown = 0;
     }
 
     public void update() {
+        if (defeated) {
+            if (defeatAnim != null) {
+                defeatAnim.next();
+            }
+            return;
+        }
+
         if (attackTimer > 0) attackTimer--;
 
-        if (specialCooldown > 0) specialCooldown--;
+        if (specialCooldown < 180) specialCooldown++;
 
         if (left) x -= 2;
         if (right) x += 2;
@@ -50,9 +67,9 @@ public class Player {
         }
 
         if (special && attackTimer == 0) {
-            if (specialCooldown == 0) {
+            if (specialCooldown >= 180) {
                 attackTimer = 35;
-                specialCooldown = 1800;
+                specialCooldown = 0;
                 powerActive = true;
                 specialActive = true;
                 powerX = x + (isPlayer1 ? 90 : -90);
@@ -77,16 +94,44 @@ public class Player {
         }
     }
 
+    public void takeDamage(int damage, boolean isSpecial) {
+        if (defeated) return;
+
+        int finalDamage = isSpecial ? damage * 2 : damage;
+        health -= finalDamage;
+
+        if (specialCooldown > 0) {
+            specialCooldown -= 20;
+            if (specialCooldown < 0) specialCooldown = 0;
+        }
+
+        if (health <= 0) {
+            health = 0;
+            defeated = true;
+            if (defeatAnim != null) {
+                defeatAnim.reset();
+            }
+        }
+    }
+
     public Texture getFrame() {
+        if (defeated) {
+            if (defeatAnim != null) {
+                return defeatAnim.getCurrentFrame();
+            }
+            return null;
+        }
+
         if (attackTimer > 0) return anim.punch.next();
         if (left || right || up || down) return anim.walk.next();
         return anim.idle.getCurrentFrame();
     }
 
     public void draw(GL gl, TextureLoader loader) {
-        loader.draw(gl, getFrame(), x, y, 180, 180);
-
-        drawSpecialBar(gl);
+        Texture frame = getFrame();
+        if (frame != null) {
+            loader.draw(gl, frame, x, y, 180, 180);
+        }
 
         if (powerActive) {
             String path;
@@ -103,41 +148,81 @@ public class Player {
         }
     }
 
-    private void drawSpecialBar(GL gl) {
+    public void drawHealthBar(GL gl) {
         gl.glDisable(GL.GL_TEXTURE_2D);
 
-        float barWidth = 100;
-        float charge = 1.0f - ((float)specialCooldown / 1800.0f);
-        float barX = x + 40;
-        float barY = y - 15;
+        float barWidth = 200;
+        float barHeight = 25;
+        float healthPercent = health / 100.0f;
+
+        float barX = isPlayer1 ? 50 : 1280 - 50 - barWidth;
+        float barY = 100;
 
         gl.glColor3f(0.2f, 0.2f, 0.2f);
         gl.glBegin(GL.GL_QUADS);
         gl.glVertex2f(barX, barY);
         gl.glVertex2f(barX + barWidth, barY);
-        gl.glVertex2f(barX + barWidth, barY + 8);
-        gl.glVertex2f(barX, barY + 8);
+        gl.glVertex2f(barX + barWidth, barY + barHeight);
+        gl.glVertex2f(barX, barY + barHeight);
         gl.glEnd();
 
-        float r = charge < 0.5f ? 0 : (charge - 0.5f) * 2f;
-        float g = charge < 0.5f ? charge * 2f : 1f;
+        float r, g;
+        if (healthPercent > 0.5f) {
+            r = (1.0f - healthPercent) * 2.0f;
+            g = 1.0f;
+        } else {
+            r = 1.0f;
+            g = healthPercent * 2.0f;
+        }
 
         gl.glColor3f(r, g, 0);
         gl.glBegin(GL.GL_QUADS);
         gl.glVertex2f(barX, barY);
-        gl.glVertex2f(barX + (barWidth * charge), barY);
-        gl.glVertex2f(barX + (barWidth * charge), barY + 8);
-        gl.glVertex2f(barX, barY + 8);
+        gl.glVertex2f(barX + (barWidth * healthPercent), barY);
+        gl.glVertex2f(barX + (barWidth * healthPercent), barY + barHeight);
+        gl.glVertex2f(barX, barY + barHeight);
         gl.glEnd();
 
-        if (specialCooldown == 0) {
-            gl.glColor4f(1, 0.2f, 0.2f, 0.3f);
-            gl.glBegin(GL.GL_QUADS);
-            gl.glVertex2f(barX - 3, barY - 3);
-            gl.glVertex2f(barX + barWidth + 3, barY - 3);
-            gl.glVertex2f(barX + barWidth + 3, barY + 11);
-            gl.glVertex2f(barX - 3, barY + 11);
+        gl.glEnable(GL.GL_TEXTURE_2D);
+        gl.glColor3f(1, 1, 1);
+    }
+
+    public void drawPowerBar(GL gl) {
+        gl.glDisable(GL.GL_TEXTURE_2D);
+
+        float barWidth = 200;
+        float barHeight = 25;
+        float powerPercent = specialCooldown / 180.0f;
+
+        float barX = isPlayer1 ? 50 : 1280 - 50 - barWidth;
+        float barY = 50;
+
+        gl.glColor3f(0.1f, 0.1f, 0.3f);
+        gl.glBegin(GL.GL_QUADS);
+        gl.glVertex2f(barX, barY);
+        gl.glVertex2f(barX + barWidth, barY);
+        gl.glVertex2f(barX + barWidth, barY + barHeight);
+        gl.glVertex2f(barX, barY + barHeight);
+        gl.glEnd();
+
+        gl.glColor3f(0, 0.5f, 1);
+        gl.glBegin(GL.GL_QUADS);
+        gl.glVertex2f(barX, barY);
+        gl.glVertex2f(barX + (barWidth * powerPercent), barY);
+        gl.glVertex2f(barX + (barWidth * powerPercent), barY + barHeight);
+        gl.glVertex2f(barX, barY + barHeight);
+        gl.glEnd();
+
+        if (specialCooldown >= 180) {
+            gl.glColor4f(1, 1, 0, 0.8f);
+            gl.glLineWidth(3);
+            gl.glBegin(GL.GL_LINE_LOOP);
+            gl.glVertex2f(barX - 2, barY - 2);
+            gl.glVertex2f(barX + barWidth + 2, barY - 2);
+            gl.glVertex2f(barX + barWidth + 2, barY + barHeight + 2);
+            gl.glVertex2f(barX - 2, barY + barHeight + 2);
             gl.glEnd();
+            gl.glLineWidth(1);
         }
 
         gl.glEnable(GL.GL_TEXTURE_2D);
@@ -145,6 +230,9 @@ public class Player {
     }
 
     public boolean hitTest(float px, float py) {
+        if (defeated) return false;
         return px > x && px < x + 180 && py > y && py < y + 180;
     }
 }
+
+
