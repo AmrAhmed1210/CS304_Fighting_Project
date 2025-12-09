@@ -14,19 +14,23 @@ public class SpriteAnimator {
     int timer = 0;
     int speed = 7;
 
-    public SpriteAnimator(String sheetPath, int frameCount, int frameWidth, int frameHeight) {
+    public SpriteAnimator(String sheetPath, int frameCount) {
         frames = new Texture[frameCount];
 
         try {
             File sheetFile = new File(PathsConfig.BASE + sheetPath);
-            if (!sheetFile.exists()) return;
+            if (!sheetFile.exists()) {
+                System.out.println("Image not found: " + sheetPath);
+                return;
+            }
 
             BufferedImage sheet = ImageIO.read(sheetFile);
 
-            for (int i = 0; i < frameCount; i++) {
-                if (i * frameWidth >= sheet.getWidth()) break;
+            int calculatedWidth = sheet.getWidth() / frameCount;
+            int calculatedHeight = sheet.getHeight();
 
-                BufferedImage frame = sheet.getSubimage(i * frameWidth, 0, frameWidth, frameHeight);
+            for (int i = 0; i < frameCount; i++) {
+                BufferedImage frame = sheet.getSubimage(i * calculatedWidth, 0, calculatedWidth, calculatedHeight);
 
                 File out = File.createTempFile("frame_" + sheetPath.hashCode() + "_" + i, ".png");
                 out.deleteOnExit();
@@ -39,7 +43,9 @@ public class SpriteAnimator {
                     frames[i].setTexParameteri(GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR);
                 }
             }
-        } catch (Exception e) {}
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public Texture next() {

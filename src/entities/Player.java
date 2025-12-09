@@ -10,19 +10,23 @@ import java.util.ArrayList;
 public class Player {
     public float x;
     public float y = 300;
+
     public boolean left, right, up, down, attack, special;
+
     public int specialCooldown = 0;
     public boolean isPlayer1;
     public int health = 100;
     public boolean defeated = false;
-    public SpriteAnimator defeatAnim;
     public String playerName;
-    public int punchAnimationTimer = 0;
-    public int hitAnimationTimer = 0;
-    public long hitStart = 0;
+
+    public int punchTimer = 0;
+    public int hitTimer = 0;
+
+    public SpriteAnimator defeatAnim;
     public SpriteAnimator hitAnim;
-    public ArrayList<PlayerPower> powers = new ArrayList<>();
     PlayerAnimator anim;
+
+    public ArrayList<PlayerPower> powers = new ArrayList<>();
 
     public class PlayerPower {
         public float x, y;
@@ -51,6 +55,7 @@ public class Player {
                 path = isPlayer1 ? "powers/bee_hit_power.png" : "powers/kree_hit_power.png";
             else
                 path = isPlayer1 ? "powers/bee_power.png" : "powers/kree_power.png";
+
             Texture t = loader.load(path);
             if (t != null) {
                 float s = isSpecial ? 100 : 70;
@@ -64,57 +69,62 @@ public class Player {
         isPlayer1 = player1;
         playerName = name;
         x = player1 ? 400 : 800;
-        defeatAnim = new SpriteAnimator(isPlayer1 ? "sprites/player1/defeat.png" : "sprites/player2/defeat.png", 4, 50, 50);
-        hitAnim = new SpriteAnimator(isPlayer1 ? "sprites/player1/hit.png" : "sprites/player2/hit.png", 5, 50, 50);
+
+
+        this.defeatAnim = a.defeat;
+        this.hitAnim = a.hit;
+
         specialCooldown = 180;
     }
 
     public void update() {
         if (defeated) {
-            defeatAnim.next();
             return;
         }
 
         if (specialCooldown < 180) specialCooldown++;
-        if (punchAnimationTimer > 0) punchAnimationTimer--;
 
-        if (hitAnimationTimer > 0) {
-            if (System.currentTimeMillis() - hitStart >= 2000) hitAnimationTimer = 0;
+        if (punchTimer > 0) punchTimer--;
+        if (hitTimer > 0) hitTimer--;
+
+        if (hitTimer == 0) {
+            if (left) x -= 2;
+            if (right) x += 2;
+            if (up) y -= 2;
+            if (down) y += 2;
         }
-
-        if (left) x -= 2;
-        if (right) x += 2;
-        if (up) y -= 2;
-        if (down) y += 2;
 
         if (x < 0) x = 0;
         if (x > 1100) x = 1100;
         if (y < 0) y = 0;
         if (y > 540) y = 540;
 
-        if (attack) {
-            float speed = isPlayer1 ? 2 : -2;
+        if (attack && hitTimer == 0) {
+            float speed = isPlayer1 ? 5 : -5;
             float sx = x + (isPlayer1 ? 90 : -90);
             float sy = y + 50;
             powers.add(new PlayerPower(sx, sy, speed, false));
-            punchAnimationTimer = 15;
+            punchTimer = 15;
+            anim.punch.reset();
             attack = false;
         }
 
-        if (special) {
+        if (special && hitTimer == 0) {
             if (specialCooldown >= 180) {
-                float speed = isPlayer1 ? 3 : -3;
+                float speed = isPlayer1 ? 7 : -7;
                 float sx = x + (isPlayer1 ? 90 : -90);
                 float sy = y + 50;
                 powers.add(new PlayerPower(sx, sy, speed, true));
                 specialCooldown = 0;
-                punchAnimationTimer = 20;
+                punchTimer = 20;
+                anim.punch.reset();
             } else {
-                float speed = isPlayer1 ? 2 : -2;
+                float speed = isPlayer1 ? 5 : -5;
                 float sx = x + (isPlayer1 ? 90 : -90);
                 float sy = y + 50;
                 powers.add(new PlayerPower(sx, sy, speed, false));
-                punchAnimationTimer = 15;
+                punchTimer = 15;
+                anim.punch.reset();
             }
             special = false;
         }
@@ -128,15 +138,18 @@ public class Player {
 
     public void takeDamage(int damage, boolean special) {
         if (defeated) return;
+
         int d = special ? damage * 2 : damage;
         health -= d;
-        hitStart = System.currentTimeMillis();
-        hitAnimationTimer = 1;
+
+        hitTimer = 30;
         hitAnim.reset();
+
         if (specialCooldown > 0) {
             specialCooldown -= 20;
             if (specialCooldown < 0) specialCooldown = 0;
         }
+
         if (health <= 0) {
             health = 0;
             defeated = true;
@@ -144,17 +157,46 @@ public class Player {
         }
     }
 
+
+
     public Texture getFrame() {
-        if (defeated) return defeatAnim.getCurrentFrame();
-        if (hitAnimationTimer > 0) return hitAnim.getCurrentFrame();
-        if (punchAnimationTimer > 0) return anim.punch.next();
-        if (left || right || up || down) return anim.walk.next();
-        return anim.idle.getCurrentFrame();
+
+        if (defeated) {
+            int lastIndex = defeatAnim.frames.length - 1;
+            if (lastIndex < 0) lastIndex = 0;
+            return defeatAnim.frames[lastIndex];
+        }
+
+
+        if (hitTimer > 0) {
+            int impactFrame = 2;
+            if (impactFrame >= hitAnim.frames.length) impactFrame = 0;
+
+            return hitAnim.frames[impactFrame];
+        }
+
+        if (punchTimer > 0) {
+            int punchFrame = 2;
+            if (punchFrame >= anim.punch.frames.length) punchFrame = 0;
+
+            return anim.punch.frames[punchFrame];
+        }
+
+        if (left || right || up || down) {
+            return anim.walk.next();
+        }
+
+        anim.walk.reset();
+
+        return anim.idle.frames[0];
     }
 
     public void draw(GL gl, TextureLoader loader) {
         Texture f = getFrame();
-        if (f != null) loader.draw(gl, f, x, y, 180, 180);
+        if (f != null) {
+            loader.drawSprite(gl, f, x, y, 180, 180, !isPlayer1);
+        }
+
         for (PlayerPower p : powers) p.draw(gl, loader);
     }
 

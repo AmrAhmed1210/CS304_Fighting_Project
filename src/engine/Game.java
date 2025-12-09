@@ -9,14 +9,27 @@ import javax.swing.*;
 import java.awt.event.*;
 import java.awt.Font;
 
-public class Game implements GLEventListener, KeyListener {
+public class Game implements GLEventListener, KeyListener, MouseListener, MouseMotionListener {
+
+
+    enum State { MENU, ENTER_NAME, PLAYING }
+    State gameState = State.MENU;
+    AccountInputScreen inputScreen;
+
     TextureLoader loader = new TextureLoader();
     Texture bg;
+
+    MainMenu mainMenu;
+
     Player p1, p2;
     boolean gameOver = false;
     String winnerName = "";
     int winTimer = 0;
     TextRenderer textRenderer;
+
+    int mouseX = 0;
+    int mouseY = 0;
+
     public void init(GLAutoDrawable d) {
         GL gl = d.getGL();
         gl.glEnable(GL.GL_TEXTURE_2D);
@@ -32,15 +45,11 @@ public class Game implements GLEventListener, KeyListener {
 
         bg = loader.load("background/bg.png");
 
-        PlayerAnimator a1 = new PlayerAnimator();
-        a1.idle = new SpriteAnimator("sprites/player1/idle.png", 5, 50, 50);
-        a1.walk = new SpriteAnimator("sprites/player1/walk.png", 5, 50, 50);
-        a1.punch = new SpriteAnimator("sprites/player1/punch.png", 5, 50, 50);
+        mainMenu = new MainMenu();
+        inputScreen = new AccountInputScreen();
 
-        PlayerAnimator a2 = new PlayerAnimator();
-        a2.idle = new SpriteAnimator("sprites/player2/idle.png", 5, 50, 50);
-        a2.walk = new SpriteAnimator("sprites/player2/walk.png", 5, 50, 50);
-        a2.punch = new SpriteAnimator("sprites/player2/punch.png", 5, 50, 50);
+        PlayerAnimator a1 = new PlayerAnimator("player1");
+        PlayerAnimator a2 = new PlayerAnimator("player2");
 
         p1 = new Player(a1, true, "BEE");
         p2 = new Player(a2, false, "KREE");
@@ -53,6 +62,18 @@ public class Game implements GLEventListener, KeyListener {
         gl.glClear(GL.GL_COLOR_BUFFER_BIT);
         gl.glColor3f(1, 1, 1);
 
+        if (gameState == State.MENU) {
+            mainMenu.draw(gl, loader, mouseX, mouseY);
+        }
+        else if (gameState == State.ENTER_NAME) {
+            inputScreen.draw(gl, loader, mouseX, mouseY);
+        }
+        else {
+            playGame(gl);
+        }
+    }
+
+    public void playGame(GL gl) {
         loader.draw(gl, bg, 0, 0, 1280, 720);
 
         if (!gameOver) {
@@ -73,10 +94,7 @@ public class Game implements GLEventListener, KeyListener {
                     if (p2.defeated) {
                         gameOver = true;
                         winnerName = p1.playerName;
-                        p1.powers.clear();
-                        p2.powers.clear();
-                        p1.left = p1.right = p1.up = p1.down = false;
-                        p2.left = p2.right = p2.up = p2.down = false;
+                        resetGameLogic();
                     }
                 }
             }
@@ -95,10 +113,7 @@ public class Game implements GLEventListener, KeyListener {
                     if (p1.defeated) {
                         gameOver = true;
                         winnerName = p2.playerName;
-                        p1.powers.clear();
-                        p2.powers.clear();
-                        p1.left = p1.right = p1.up = p1.down = false;
-                        p2.left = p2.right = p2.up = p2.down = false;
+                        resetGameLogic();
                     }
                 }
             }
@@ -120,30 +135,21 @@ public class Game implements GLEventListener, KeyListener {
         }
     }
 
-    private void drawPlayerNames(GL gl) {
-        gl.glDisable(GL.GL_TEXTURE_2D);
-
-        textRenderer.beginRendering(1280, 720);
-        textRenderer.setSmoothing(true);
-        textRenderer.setColor(1f, 1f, 1f, 1f);
-
-        String p1Name = p1.playerName;
-        String p2Name = p2.playerName;
-
-        int p1X = 50;
-        int p1Y = 80;
-        int p2X = 1280 - 50 - (p2Name.length() * 12);
-        int p2Y = 80;
-
-        textRenderer.draw(p1Name, p1X, p1Y);
-        textRenderer.draw(p2Name, p2X, p2Y);
-
-        textRenderer.endRendering();
-
-        gl.glEnable(GL.GL_TEXTURE_2D);
-        gl.glColor3f(1, 1, 1);
+    private void resetGameLogic() {
+        p1.powers.clear();
+        p2.powers.clear();
+        p1.left = p1.right = p1.up = p1.down = false;
+        p2.left = p2.right = p2.up = p2.down = false;
     }
 
+
+    private void drawPlayerNames(GL gl) {
+        textRenderer.beginRendering(1280, 720);
+        textRenderer.setColor(1f, 1f, 1f, 1f);
+        textRenderer.draw(p1.playerName, 50, 80);
+        textRenderer.draw(p2.playerName, 1280 - 50 - (p2.playerName.length() * 12), 80);
+        textRenderer.endRendering();
+    }
     private void drawBarLabels(GL gl) {
         com.sun.opengl.util.j2d.TextRenderer tr = new com.sun.opengl.util.j2d.TextRenderer(new java.awt.Font("Arial", java.awt.Font.BOLD, 14));
 
@@ -178,7 +184,6 @@ public class Game implements GLEventListener, KeyListener {
 
         tr.endRendering();
     }
-
     private void drawWinMessage(GL gl) {
         gl.glDisable(GL.GL_TEXTURE_2D);
 
@@ -228,21 +233,64 @@ public class Game implements GLEventListener, KeyListener {
 
         gl.glEnable(GL.GL_TEXTURE_2D);
         gl.glColor3f(1, 1, 1);
+
+
+
     }
 
-    public void reshape(GLAutoDrawable a, int x, int y, int w, int h) {
-    }
-
-    public void displayChanged(GLAutoDrawable a, boolean b, boolean c) {
-    }
-
-    public void keyTyped(KeyEvent e) {
-    }
+    public void reshape(GLAutoDrawable a, int x, int y, int w, int h) {}
+    public void displayChanged(GLAutoDrawable a, boolean b, boolean c) {}
 
     public void keyPressed(KeyEvent e) {
+        int k = e.getKeyCode();
+        if (gameState == State.ENTER_NAME) {
+
+            char c = e.getKeyChar();
+
+            if (k == KeyEvent.VK_RIGHT || k == KeyEvent.VK_LEFT) {
+                if (inputScreen.selectedIndex == 0) inputScreen.selectedIndex = 1;
+                else inputScreen.selectedIndex = 0;
+                return;
+            }
+
+            if (k == KeyEvent.VK_ENTER) {
+                inputScreen.buttons.get(inputScreen.selectedIndex).onClick(this);
+                return;
+            }
+
+            if (k == KeyEvent.VK_BACK_SPACE) {
+                if (inputScreen.userName.length() > 0) {
+                    inputScreen.userName.deleteCharAt(inputScreen.userName.length() - 1);
+                }
+            }
+            else if (Character.isLetterOrDigit(c) || c == ' ') {
+                if (inputScreen.userName.length() < 18) {
+                    inputScreen.userName.append(c);
+                }
+            }
+            return;
+        }
+        if (gameState == State.MENU) {
+            if (k == KeyEvent.VK_UP) {
+                mainMenu.selectedIndex--;
+                if (mainMenu.selectedIndex < 0) {
+                    mainMenu.selectedIndex = mainMenu.buttons.size() - 1;
+                }
+            }
+            if (k == KeyEvent.VK_DOWN) {
+                mainMenu.selectedIndex++;
+                if (mainMenu.selectedIndex >= mainMenu.buttons.size()) {
+                    mainMenu.selectedIndex = 0;
+                }
+            }
+            if (k == KeyEvent.VK_ENTER) {
+                mainMenu.buttons.get(mainMenu.selectedIndex).onClick(this);
+            }
+            return;
+        }
         if (gameOver) return;
 
-        int k = e.getKeyCode();
+
         if (k == KeyEvent.VK_A) p1.left = true;
         if (k == KeyEvent.VK_D) p1.right = true;
         if (k == KeyEvent.VK_W) p1.up = true;
@@ -259,7 +307,7 @@ public class Game implements GLEventListener, KeyListener {
     }
 
     public void keyReleased(KeyEvent e) {
-        if (gameOver) return;
+        if (gameState == State.MENU) return;
 
         int k = e.getKeyCode();
         if (k == KeyEvent.VK_A) p1.left = false;
@@ -277,15 +325,50 @@ public class Game implements GLEventListener, KeyListener {
         if (k == KeyEvent.VK_SHIFT) p2.special = false;
     }
 
+    public void keyTyped(KeyEvent e) {}
+
+    @Override
+    public void mouseClicked(MouseEvent e) {
+        if (gameState == State.MENU) {
+            for (Button b : mainMenu.buttons) {
+                if (b.isInside(mouseX, mouseY)) {
+                    b.onClick(this);
+                }
+            }
+        }
+        else if (gameState == State.ENTER_NAME) {
+            for (Button b : inputScreen.buttons) {
+                if (b.isInside(mouseX, mouseY)) {
+                    b.onClick(this);
+                }
+            }
+        }
+    }
+
+    @Override
+    public void mouseMoved(MouseEvent e) {
+        mouseX = e.getX();
+        mouseY = e.getY();
+    }
+
+    public void mousePressed(MouseEvent e) {}
+    public void mouseReleased(MouseEvent e) {}
+    public void mouseEntered(MouseEvent e) {}
+    public void mouseExited(MouseEvent e) {}
+    public void mouseDragged(MouseEvent e) {}
+
     public void start() {
         JFrame w = new JFrame("Fighting Game");
         GLCanvas c = new GLCanvas();
         c.addGLEventListener(this);
         c.addKeyListener(this);
+        c.addMouseListener(this);
+        c.addMouseMotionListener(this);
         w.add(c);
         w.setSize(1280, 720);
         w.setResizable(false);
         w.setVisible(true);
+        w.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         c.requestFocus();
 
         Animator a = new Animator(c);
