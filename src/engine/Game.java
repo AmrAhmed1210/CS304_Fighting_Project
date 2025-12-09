@@ -109,13 +109,16 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
                 }
                 float pw = power.isSpecial ? 100f : 70f;
                 float ph = pw;
+
                 if (power.x < p2.x + 180 && power.x + pw > p2.x && power.y < p2.y + 180 && power.y + ph > p2.y) {
                     p1.powers.remove(i);
                     p2.takeDamage(power.isSpecial ? 20 : 10, power.isSpecial);
+
                     if (p2.defeated) {
                         gameOver = true;
                         winnerName = p1.playerName;
                         resetGameLogic();
+                        return;
                     }
                 }
             }
@@ -128,13 +131,16 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
                 }
                 float pw = power.isSpecial ? 100f : 70f;
                 float ph = pw;
+
                 if (power.x < p1.x + 180 && power.x + pw > p1.x && power.y < p1.y + 180 && power.y + ph > p1.y) {
                     p2.powers.remove(i);
                     p1.takeDamage(power.isSpecial ? 20 : 10, power.isSpecial);
+
                     if (p1.defeated) {
                         gameOver = true;
                         winnerName = p2.playerName;
                         resetGameLogic();
+                        return;
                     }
                 }
             }
