@@ -81,13 +81,12 @@ public class AIController {
     }
 
 
-    private void resetControls() {
-        aiPlayer.left = false;
-        aiPlayer.right = false;
+     private void resetControls() {
+         aiPlayer.left = false;
+         aiPlayer.right = false;
         aiPlayer.up = false;
         aiPlayer.down = false;
         aiPlayer.attack = false;
         aiPlayer.special = false;
     }
 }
-//-

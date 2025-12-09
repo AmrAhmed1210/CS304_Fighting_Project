@@ -108,10 +108,10 @@ public class CharacterSelectScreen {
         }
 
         if (charPreviews[0] == null) {
-            charPreviews[0] = loader.load("sprites/player1/idle.png");
+            charPreviews[0] = loader.load("sprites/0.png");
         }
         if (charPreviews[1] == null) {
-            charPreviews[1] = loader.load("sprites/player2/idle.png");
+            charPreviews[1] = loader.load("sprites/1.png");
         }
 
         for (int i = 0; i < buttons.size(); i++) {
