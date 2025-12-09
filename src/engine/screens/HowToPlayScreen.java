@@ -97,11 +97,9 @@ public class HowToPlayScreen {
         int x = (int)((1280 - bounds.getWidth()) / 2);
 
         drawTextBackground(gl, x - 30, 630, (int)bounds.getWidth() + 60, 80, new Color(0, 0, 0, 150));
-
         drawGlowingBorder(gl, x - 40, 620, (int)bounds.getWidth() + 80, 100, TITLE_COLOR);
 
         titleRenderer.draw(title, x, 650);
-
         titleRenderer.endRendering();
     }
 
