@@ -37,6 +37,7 @@ public class TextureLoader {
             t.disable();
         } catch (Exception e) {}
     }
+
     public void drawSprite(GL gl, Texture t, float x, float y, float w, float h, boolean flip) {
         if (t == null) return;
 
