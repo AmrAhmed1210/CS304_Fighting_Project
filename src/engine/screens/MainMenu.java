@@ -18,7 +18,7 @@ public class MainMenu {
         textRenderer = new TextRenderer(new Font("Impact", Font.BOLD, 50), true, true);
 
         float centerX = (1280 - 300) / 2;
-        float startY = 270;
+        float startY = 200;
         float gap = 70;
         float btnWidth = 300;
         float btnHeight = 40;
