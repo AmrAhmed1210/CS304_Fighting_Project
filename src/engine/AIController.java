@@ -80,6 +80,7 @@ public class AIController {
         }
     }
 
+
     private void resetControls() {
         aiPlayer.left = false;
         aiPlayer.right = false;
@@ -89,3 +90,4 @@ public class AIController {
         aiPlayer.special = false;
     }
 }
+//-
