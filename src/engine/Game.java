@@ -8,27 +8,34 @@ import com.sun.opengl.util.j2d.TextRenderer;
 import javax.swing.*;
 import java.awt.event.*;
 import java.awt.Font;
+import engine.screens.*;
 
 public class Game implements GLEventListener, KeyListener, MouseListener, MouseMotionListener {
 
-
-    enum State { MENU, ENTER_NAME, PLAYING }
-    State gameState = State.MENU;
-    AccountInputScreen inputScreen;
+    public enum State { MENU, ENTER_NAME, CHARACTER_SELECT, HOW_TO_PLAY, PLAYING }
+    public State gameState = State.MENU;
+    public AccountInputScreen inputScreen;
+    CharacterSelectScreen characterSelectScreen;
+    HowToPlayScreen howToPlayScreen;
 
     TextureLoader loader = new TextureLoader();
     Texture bg;
 
     MainMenu mainMenu;
 
-    Player p1, p2;
-    boolean gameOver = false;
-    String winnerName = "";
-    int winTimer = 0;
+    public Player p1;
+    public Player p2;
+    AIController aiController;
+    public boolean gameOver = false;
+    public String winnerName = "";
+    public int winTimer = 0;
     TextRenderer textRenderer;
 
     int mouseX = 0;
     int mouseY = 0;
+
+    public String selectedCharacter = "BEE";
+    public boolean vsComputer = true;
 
     public void init(GLAutoDrawable d) {
         GL gl = d.getGL();
@@ -47,14 +54,18 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
 
         mainMenu = new MainMenu();
         inputScreen = new AccountInputScreen();
+        characterSelectScreen = new CharacterSelectScreen();
+        howToPlayScreen = new HowToPlayScreen();
 
         PlayerAnimator a1 = new PlayerAnimator("player1");
         PlayerAnimator a2 = new PlayerAnimator("player2");
 
-        p1 = new Player(a1, true, "BEE");
+        p1 = new Player(a1, true, "Player 1");
         p2 = new Player(a2, false, "KREE");
 
         textRenderer = new TextRenderer(new Font("Arial", Font.BOLD, 20), true, true);
+
+        aiController = new AIController(p2, p1);
     }
 
     public void display(GLAutoDrawable d) {
@@ -68,6 +79,12 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
         else if (gameState == State.ENTER_NAME) {
             inputScreen.draw(gl, loader, mouseX, mouseY);
         }
+        else if (gameState == State.CHARACTER_SELECT) {
+            characterSelectScreen.draw(gl, loader, mouseX, mouseY);
+        }
+        else if (gameState == State.HOW_TO_PLAY) {
+            howToPlayScreen.draw(gl, loader, mouseX, mouseY);
+        }
         else {
             playGame(gl);
         }
@@ -79,6 +96,10 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
         if (!gameOver) {
             p1.update();
             p2.update();
+
+            if (vsComputer) {
+                aiController.update();
+            }
 
             for (int i = p1.powers.size() - 1; i >= 0; i--) {
                 Player.PlayerPower power = p1.powers.get(i);
@@ -148,14 +169,15 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
         p2.left = p2.right = p2.up = p2.down = false;
     }
 
-
     private void drawPlayerNames(GL gl) {
         textRenderer.beginRendering(1280, 720);
         textRenderer.setColor(1f, 1f, 1f, 1f);
         textRenderer.draw(p1.playerName, 50, 80);
-        textRenderer.draw(p2.playerName, 1280 - 50 - (p2.playerName.length() * 12), 80);
+        String p2Name = vsComputer ? "COMPUTER" : p2.playerName;
+        textRenderer.draw(p2Name, 1280 - 50 - (p2Name.length() * 12), 80);
         textRenderer.endRendering();
     }
+
     private void drawBarLabels(GL gl) {
         com.sun.opengl.util.j2d.TextRenderer tr = new com.sun.opengl.util.j2d.TextRenderer(new java.awt.Font("Arial", java.awt.Font.BOLD, 14));
 
@@ -183,13 +205,14 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
         };
 
         drawCentered.accept("HEALTH", new java.awt.Point(p1BarX, p1HealthBarY));
-        drawCentered.accept("SPICAL POWER", new java.awt.Point(p1BarX, p1PowerBarY));
+        drawCentered.accept("SPECIAL POWER", new java.awt.Point(p1BarX, p1PowerBarY));
 
         drawCentered.accept("HEALTH", new java.awt.Point(p2BarX, p2HealthBarY));
-        drawCentered.accept("SPICAL POWER", new java.awt.Point(p2BarX, p2PowerBarY));
+        drawCentered.accept("SPECIAL POWER", new java.awt.Point(p2BarX, p2PowerBarY));
 
         tr.endRendering();
     }
+
     private void drawWinMessage(GL gl) {
         gl.glDisable(GL.GL_TEXTURE_2D);
 
@@ -225,7 +248,7 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
             gl.glColor4f(0, 1, 0, pulse);
         }
 
-        String winText = winnerName + " IS WIIIIIIINNNNNN!!!";
+        String winText = winnerName + " WINS!";
 
         textRenderer.beginRendering(1280, 720);
         textRenderer.setColor(1f, 1f, 1f, 1f);
@@ -239,9 +262,6 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
 
         gl.glEnable(GL.GL_TEXTURE_2D);
         gl.glColor3f(1, 1, 1);
-
-
-
     }
 
     public void reshape(GLAutoDrawable a, int x, int y, int w, int h) {}
@@ -249,8 +269,20 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
 
     public void keyPressed(KeyEvent e) {
         int k = e.getKeyCode();
-        if (gameState == State.ENTER_NAME) {
 
+        if (gameState == State.HOW_TO_PLAY) {
+            if (k == KeyEvent.VK_ESCAPE) {
+                gameState = State.MENU;
+            }
+            return;
+        }
+
+        if (gameState == State.CHARACTER_SELECT) {
+            characterSelectScreen.handleInput(k, this);
+            return;
+        }
+
+        if (gameState == State.ENTER_NAME) {
             char c = e.getKeyChar();
 
             if (k == KeyEvent.VK_RIGHT || k == KeyEvent.VK_LEFT) {
@@ -276,6 +308,7 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
             }
             return;
         }
+
         if (gameState == State.MENU) {
             if (k == KeyEvent.VK_UP) {
                 mainMenu.selectedIndex--;
@@ -294,41 +327,60 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
             }
             return;
         }
+
         if (gameOver) return;
 
+        if (!vsComputer) {
+            if (k == KeyEvent.VK_A) p1.left = true;
+            if (k == KeyEvent.VK_D) p1.right = true;
+            if (k == KeyEvent.VK_W) p1.up = true;
+            if (k == KeyEvent.VK_S) p1.down = true;
+            if (k == KeyEvent.VK_F) p1.attack = true;
+            if (k == KeyEvent.VK_G) p1.special = true;
 
-        if (k == KeyEvent.VK_A) p1.left = true;
-        if (k == KeyEvent.VK_D) p1.right = true;
-        if (k == KeyEvent.VK_W) p1.up = true;
-        if (k == KeyEvent.VK_S) p1.down = true;
-        if (k == KeyEvent.VK_F) p1.attack = true;
-        if (k == KeyEvent.VK_G) p1.special = true;
-
-        if (k == KeyEvent.VK_LEFT) p2.left = true;
-        if (k == KeyEvent.VK_RIGHT) p2.right = true;
-        if (k == KeyEvent.VK_UP) p2.up = true;
-        if (k == KeyEvent.VK_DOWN) p2.down = true;
-        if (k == KeyEvent.VK_ENTER) p2.attack = true;
-        if (k == KeyEvent.VK_SHIFT) p2.special = true;
+            if (k == KeyEvent.VK_LEFT) p2.left = true;
+            if (k == KeyEvent.VK_RIGHT) p2.right = true;
+            if (k == KeyEvent.VK_UP) p2.up = true;
+            if (k == KeyEvent.VK_DOWN) p2.down = true;
+            if (k == KeyEvent.VK_ENTER) p2.attack = true;
+            if (k == KeyEvent.VK_SHIFT) p2.special = true;
+        } else {
+            if (k == KeyEvent.VK_A) p1.left = true;
+            if (k == KeyEvent.VK_D) p1.right = true;
+            if (k == KeyEvent.VK_W) p1.up = true;
+            if (k == KeyEvent.VK_S) p1.down = true;
+            if (k == KeyEvent.VK_F) p1.attack = true;
+            if (k == KeyEvent.VK_G) p1.special = true;
+        }
     }
 
     public void keyReleased(KeyEvent e) {
         if (gameState == State.MENU) return;
 
         int k = e.getKeyCode();
-        if (k == KeyEvent.VK_A) p1.left = false;
-        if (k == KeyEvent.VK_D) p1.right = false;
-        if (k == KeyEvent.VK_W) p1.up = false;
-        if (k == KeyEvent.VK_S) p1.down = false;
-        if (k == KeyEvent.VK_F) p1.attack = false;
-        if (k == KeyEvent.VK_G) p1.special = false;
 
-        if (k == KeyEvent.VK_LEFT) p2.left = false;
-        if (k == KeyEvent.VK_RIGHT) p2.right = false;
-        if (k == KeyEvent.VK_UP) p2.up = false;
-        if (k == KeyEvent.VK_DOWN) p2.down = false;
-        if (k == KeyEvent.VK_ENTER) p2.attack = false;
-        if (k == KeyEvent.VK_SHIFT) p2.special = false;
+        if (!vsComputer) {
+            if (k == KeyEvent.VK_A) p1.left = false;
+            if (k == KeyEvent.VK_D) p1.right = false;
+            if (k == KeyEvent.VK_W) p1.up = false;
+            if (k == KeyEvent.VK_S) p1.down = false;
+            if (k == KeyEvent.VK_F) p1.attack = false;
+            if (k == KeyEvent.VK_G) p1.special = false;
+
+            if (k == KeyEvent.VK_LEFT) p2.left = false;
+            if (k == KeyEvent.VK_RIGHT) p2.right = false;
+            if (k == KeyEvent.VK_UP) p2.up = false;
+            if (k == KeyEvent.VK_DOWN) p2.down = false;
+            if (k == KeyEvent.VK_ENTER) p2.attack = false;
+            if (k == KeyEvent.VK_SHIFT) p2.special = false;
+        } else {
+            if (k == KeyEvent.VK_A) p1.left = false;
+            if (k == KeyEvent.VK_D) p1.right = false;
+            if (k == KeyEvent.VK_W) p1.up = false;
+            if (k == KeyEvent.VK_S) p1.down = false;
+            if (k == KeyEvent.VK_F) p1.attack = false;
+            if (k == KeyEvent.VK_G) p1.special = false;
+        }
     }
 
     public void keyTyped(KeyEvent e) {}
@@ -344,6 +396,13 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
         }
         else if (gameState == State.ENTER_NAME) {
             for (Button b : inputScreen.buttons) {
+                if (b.isInside(mouseX, mouseY)) {
+                    b.onClick(this);
+                }
+            }
+        }
+        else if (gameState == State.CHARACTER_SELECT) {
+            for (Button b : characterSelectScreen.buttons) {
                 if (b.isInside(mouseX, mouseY)) {
                     b.onClick(this);
                 }

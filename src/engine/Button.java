@@ -18,7 +18,6 @@ public abstract class Button {
     }
 
     public void draw(GL gl, TextRenderer tr) {
-
         tr.beginRendering(1280, 720);
 
         int textWidth = (int) tr.getBounds(label).getWidth();

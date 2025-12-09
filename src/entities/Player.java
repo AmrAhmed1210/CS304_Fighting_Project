@@ -70,7 +70,6 @@ public class Player {
         playerName = name;
         x = player1 ? 400 : 800;
 
-
         this.defeatAnim = a.defeat;
         this.hitAnim = a.hit;
 
@@ -157,16 +156,12 @@ public class Player {
         }
     }
 
-
-
     public Texture getFrame() {
-
         if (defeated) {
             int lastIndex = defeatAnim.frames.length - 1;
             if (lastIndex < 0) lastIndex = 0;
             return defeatAnim.frames[lastIndex];
         }
-
 
         if (hitTimer > 0) {
             int impactFrame = 2;
