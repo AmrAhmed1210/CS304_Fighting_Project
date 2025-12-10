@@ -10,6 +10,7 @@ public class ExitButton extends Button {
 
     @Override
     public void onClick(Game game) {
+        game.soundManager.stopStartSound();
         System.exit(0);
     }
 }

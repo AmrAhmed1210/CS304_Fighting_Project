@@ -10,6 +10,7 @@ public class CreditsButton extends Button {
 
     @Override
     public void onClick(Game game) {
+        game.soundManager.stopStartSound();
         System.out.println("Show Credits");
     }
 }

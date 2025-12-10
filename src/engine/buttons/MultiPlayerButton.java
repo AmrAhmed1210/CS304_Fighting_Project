@@ -10,6 +10,7 @@ public class MultiPlayerButton extends Button {
 
     @Override
     public void onClick(Game game) {
+        game.soundManager.stopStartSound();
         game.vsComputer = false;
         game.gameState = Game.State.PLAYING;
         game.p1.playerName = "PLAYER 1";
@@ -19,5 +20,6 @@ public class MultiPlayerButton extends Button {
         game.gameOver = false;
         game.winnerName = "";
         game.winTimer = 0;
+        game.resetSoundFlags();
     }
 }

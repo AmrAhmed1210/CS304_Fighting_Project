@@ -10,6 +10,8 @@ public class ContinueButton extends Button {
 
     @Override
     public void onClick(Game game) {
+        game.soundManager.stopStartSound();
         game.gameState = Game.State.PLAYING;
+        game.resetSoundFlags();
     }
 }

@@ -15,6 +15,7 @@ public class SinglePlayerButton extends Button {
 
     @Override
     public void onClick(Game game) {
+        game.soundManager.stopStartSound();
         game.vsComputer = true;
         game.gameState = Game.State.CHARACTER_SELECT;
     }

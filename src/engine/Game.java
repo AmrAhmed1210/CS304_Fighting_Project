@@ -37,6 +37,9 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
     public String selectedCharacter = "BEE";
     public boolean vsComputer = true;
 
+    public SoundManager soundManager;
+    private boolean gameStartSoundPlayed = false;
+
     public void init(GLAutoDrawable d) {
         GL gl = d.getGL();
         gl.glEnable(GL.GL_TEXTURE_2D);
@@ -66,6 +69,9 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
         textRenderer = new TextRenderer(new Font("Arial", Font.BOLD, 20), true, true);
 
         aiController = new AIController(p2, p1);
+
+        soundManager = new SoundManager();
+        soundManager.playStartSound();
     }
 
     public void display(GLAutoDrawable d) {
@@ -86,6 +92,10 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
             howToPlayScreen.draw(gl, loader, mouseX, mouseY);
         }
         else {
+            if (!gameStartSoundPlayed && gameState == State.PLAYING) {
+                soundManager.playGameStartSound();
+                gameStartSoundPlayed = true;
+            }
             playGame(gl);
         }
     }
@@ -262,6 +272,10 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
 
         gl.glEnable(GL.GL_TEXTURE_2D);
         gl.glColor3f(1, 1, 1);
+    }
+
+    public void resetSoundFlags() {
+        gameStartSoundPlayed = false;
     }
 
     public void reshape(GLAutoDrawable a, int x, int y, int w, int h) {}

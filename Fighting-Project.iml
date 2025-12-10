@@ -7,20 +7,19 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" exported="" name="lib64" level="project" />
-    <orderEntry type="library" name="lib66" level="project" />
     <orderEntry type="module-library">
       <library name="lib64">
         <CLASSES>
-          <root url="file://D:/Downloads/JOGLwin/JOGLwin/lib64" />
+          <root url="file://$MODULE_DIR$/../../Downloads/JOGLwin/JOGLwin/lib64" />
         </CLASSES>
         <JAVADOC />
         <NATIVE>
-          <root url="file://D:/Downloads/JOGLwin/JOGLwin/lib64" />
+          <root url="file://$MODULE_DIR$/../../Downloads/JOGLwin/JOGLwin/lib64" />
         </NATIVE>
         <SOURCES />
-        <jarDirectory url="file://D:/Downloads/JOGLwin/JOGLwin/lib64" recursive="false" />
+        <jarDirectory url="file://$MODULE_DIR$/../../Downloads/JOGLwin/JOGLwin/lib64" recursive="false" />
       </library>
     </orderEntry>
+    <orderEntry type="library" name="lib" level="project" />
   </component>
 </module>

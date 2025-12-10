@@ -10,6 +10,7 @@ public class HowToPlayButton extends Button {
 
     @Override
     public void onClick(Game game) {
+        game.soundManager.stopStartSound();
         game.gameState = Game.State.HOW_TO_PLAY;
     }
 }
