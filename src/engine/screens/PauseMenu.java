@@ -3,7 +3,6 @@ package engine.screens;
 import engine.Button;
 import engine.Game;
 import engine.TextureLoader;
-import engine.buttons.BackButton;
 import com.sun.opengl.util.j2d.TextRenderer;
 import com.sun.opengl.util.texture.Texture;
 import javax.media.opengl.GL;
@@ -31,26 +30,32 @@ public class PauseMenu {
             @Override
             public void onClick(Game game) {
                 game.gameState = Game.State.PLAYING;
-                game.soundManager.playGameBackground();
+                if (game.soundManager != null) {
+                    game.soundManager.playGameBackground();
+                }
             }
         });
 
-        buttons.add(new Button(centerX, startY + gap, btnWidth, btnHeight, "RESTART") {
+        buttons.add(new Button(centerX, startY + gap, btnWidth, btnHeight, "RESTART LEVEL") {
             @Override
             public void onClick(Game game) {
-                game.gameState = Game.State.PLAYING;
                 game.restartLevel();
-                game.soundManager.playGameBackground();
+                game.gameState = Game.State.PLAYING;
+                if (game.soundManager != null) {
+                    game.soundManager.playGameBackground();
+                }
             }
         });
 
-        buttons.add(new Button(centerX, startY + gap * 2, btnWidth, btnHeight, "QUIT TO MENU") {
+        buttons.add(new Button(centerX, startY + gap * 2, btnWidth, btnHeight, "MAIN MENU") {
             @Override
             public void onClick(Game game) {
                 game.gameState = Game.State.MENU;
+                if (game.soundManager != null) {
+                    game.soundManager.stopGameBackground();
+                    game.soundManager.playStartSound();
+                }
                 game.resetSoundFlags();
-                game.soundManager.stopGameBackground();
-                game.soundManager.playStartSound();
             }
         });
     }
@@ -87,15 +92,13 @@ public class PauseMenu {
             int textX = (int) (button.x + (button.width - textWidth) / 2);
             int textY = (int) (720 - (button.y + button.height / 2) - 15);
 
-            // ظل النص (ممكن تزيله لو مش عايز)
             buttonRenderer.setColor(0f, 0f, 0f, 1f);
             buttonRenderer.draw(button.label, textX + 2, textY - 2);
 
-            // لون النص الرئيسي
             if (button.isHovered) {
-                buttonRenderer.setColor(1f, 1f, 0f, 1f); // أصفر عند hover
+                buttonRenderer.setColor(1f, 1f, 0f, 1f);
             } else {
-                buttonRenderer.setColor(1f, 1f, 1f, 1f); // أبيض
+                buttonRenderer.setColor(1f, 1f, 1f, 1f);
             }
 
             buttonRenderer.draw(button.label, textX, textY);
@@ -144,7 +147,9 @@ public class PauseMenu {
         }
         if (keyCode == java.awt.event.KeyEvent.VK_ESCAPE) {
             game.gameState = Game.State.PLAYING;
-            game.soundManager.playGameBackground();
+            if (game.soundManager != null) {
+                game.soundManager.playGameBackground();
+            }
         }
     }
 }
