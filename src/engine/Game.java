@@ -9,15 +9,17 @@ import javax.swing.*;
 import java.awt.event.*;
 import java.awt.Font;
 import engine.screens.*;
+import java.io.*;
 
 public class Game implements GLEventListener, KeyListener, MouseListener, MouseMotionListener {
 
-    public enum State { MENU, ENTER_NAME, CHARACTER_SELECT, HOW_TO_PLAY, PLAYING, SETTINGS }
+    public enum State { MENU, ENTER_NAME, CHARACTER_SELECT, HOW_TO_PLAY, PLAYING, SETTINGS, LEVELS }
     public State gameState = State.MENU;
     public AccountInputScreen inputScreen;
     CharacterSelectScreen characterSelectScreen;
     HowToPlayScreen howToPlayScreen;
     SoundSettingsScreen soundSettingsScreen;
+    LevelsScreen levelsScreen;
 
     TextureLoader loader = new TextureLoader();
     Texture bg;
@@ -38,6 +40,10 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
 
     public String selectedCharacter = "BEE";
     public boolean vsComputer = true;
+
+    public int currentLevel = 1;
+    public int maxUnlockedLevel = 1;
+    private static final String PROGRESS_FILE = "game_progress.dat";
 
     public static SoundManager soundManager;
     private boolean gameStartSoundPlayed = false;
@@ -63,6 +69,9 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
         characterSelectScreen = new CharacterSelectScreen();
         howToPlayScreen = new HowToPlayScreen();
         soundSettingsScreen = new SoundSettingsScreen();
+        levelsScreen = new LevelsScreen();
+
+        loadProgress();
 
         PlayerAnimator a1 = new PlayerAnimator("player1");
         PlayerAnimator a2 = new PlayerAnimator("player2");
@@ -72,10 +81,41 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
 
         textRenderer = new TextRenderer(new Font("Arial", Font.BOLD, 20), true, true);
 
-        aiController = new AIController(p2, p1);
+        aiController = new AIController(p2, p1, currentLevel);
 
         soundManager = new SoundManager();
         soundManager.playStartSound();
+    }
+
+    private void loadProgress() {
+        try {
+            File file = new File(PROGRESS_FILE);
+            if (file.exists()) {
+                BufferedReader reader = new BufferedReader(new FileReader(file));
+                maxUnlockedLevel = Integer.parseInt(reader.readLine());
+                reader.close();
+            }
+        } catch (Exception e) {
+            System.out.println("Could not load progress, starting from level 1");
+            maxUnlockedLevel = 1;
+        }
+    }
+
+    private void saveProgress() {
+        try {
+            BufferedWriter writer = new BufferedWriter(new FileWriter(PROGRESS_FILE));
+            writer.write(String.valueOf(maxUnlockedLevel));
+            writer.close();
+        } catch (Exception e) {
+            System.out.println("Could not save progress");
+        }
+    }
+
+    public void unlockNextLevel() {
+        if (currentLevel == maxUnlockedLevel) {
+            maxUnlockedLevel++;
+            saveProgress();
+        }
     }
 
     public void display(GLAutoDrawable d) {
@@ -84,6 +124,11 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
 
         if (gameState == State.SETTINGS) {
             soundSettingsScreen.draw(gl, loader, mouseX, mouseY);
+            return;
+        }
+
+        if (gameState == State.LEVELS) {
+            levelsScreen.draw(gl, loader, mouseX, mouseY, maxUnlockedLevel);
             return;
         }
 
@@ -116,7 +161,12 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
     }
 
     public void playGame(GL gl) {
-        loader.draw(gl, bg, 0, 0, 1280, 720);
+        Texture levelBg = loader.load("background/bg_level" + currentLevel + ".png");
+        if (levelBg == null) {
+            loader.draw(gl, bg, 0, 0, 1280, 720);
+        } else {
+            loader.draw(gl, levelBg, 0, 0, 1280, 720);
+        }
 
         if (!gameOver) {
             p1.update();
@@ -143,6 +193,7 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
                         gameOver = true;
                         winnerName = p1.playerName;
                         soundManager.playWinSound();
+                        unlockNextLevel();
                         resetGameLogic();
                         return;
                     }
@@ -189,10 +240,20 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
         p1.draw(gl, loader);
         p2.draw(gl, loader);
 
+        drawLevelInfo(gl);
+
         if (gameOver) {
             winTimer++;
             drawWinMessage(gl);
         }
+    }
+
+    private void drawLevelInfo(GL gl) {
+        textRenderer.beginRendering(1280, 720);
+        textRenderer.setColor(1f, 1f, 0f, 1f);
+        String levelText = "LEVEL " + currentLevel;
+        textRenderer.draw(levelText, 1280/2 - (levelText.length() * 6), 30);
+        textRenderer.endRendering();
     }
 
     private void resetGameLogic() {
@@ -283,6 +344,10 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
 
         String winText = winnerName + " WINS!";
 
+        if (vsComputer && winnerName.equals(p1.playerName)) {
+            winText += " LEVEL " + currentLevel + " COMPLETED!";
+        }
+
         textRenderer.beginRendering(1280, 720);
         textRenderer.setColor(1f, 1f, 1f, 1f);
 
@@ -309,6 +374,11 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
 
         if (gameState == State.SETTINGS) {
             soundSettingsScreen.handleInput(k, this);
+            return;
+        }
+
+        if (gameState == State.LEVELS) {
+            levelsScreen.handleInput(k, this);
             return;
         }
 
@@ -431,6 +501,15 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
     public void mouseClicked(MouseEvent e) {
         if (gameState == State.SETTINGS) {
             for (Button b : soundSettingsScreen.buttons) {
+                if (b.isInside(mouseX, mouseY)) {
+                    b.onClick(this);
+                }
+            }
+            return;
+        }
+
+        if (gameState == State.LEVELS) {
+            for (Button b : levelsScreen.buttons) {
                 if (b.isInside(mouseX, mouseY)) {
                     b.onClick(this);
                 }

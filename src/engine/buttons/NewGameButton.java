@@ -10,11 +10,6 @@ public class NewGameButton extends Button {
 
     @Override
     public void onClick(Game game) {
-        game.soundManager.stopStartSound();
-        game.vsComputer = true;
-        game.gameState = Game.State.CHARACTER_SELECT;
-        game.inputScreen.userName = new StringBuilder();
-        game.selectedCharacter = "BEE";
-        game.resetSoundFlags();
+        game.gameState = Game.State.LEVELS;
     }
 }
