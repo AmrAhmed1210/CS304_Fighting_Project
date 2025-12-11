@@ -9,211 +9,272 @@ import java.awt.geom.Rectangle2D;
 
 public class HowToPlayScreen {
     private TextRenderer titleRenderer;
-    private TextRenderer headerRenderer;
+    private TextRenderer sectionRenderer;
     private TextRenderer textRenderer;
     private TextRenderer keyRenderer;
-
     private Texture bg;
 
-    private final Color COLOR_BG_OVERLAY = new Color(0, 0, 0, 200); // Dark transparency
-    private final Color COLOR_P1_THEME = new Color(0, 255, 255);    // Cyan Neon
-    private final Color COLOR_P2_THEME = new Color(255, 100, 0);    // Orange Neon
-    private final Color COLOR_OBJ_THEME = new Color(0, 255, 100);   // Green Neon
-    private final Color COLOR_TEXT_WHITE = new Color(240, 240, 255);
+    private final Color TITLE_COLOR = new Color(255, 215, 0);
+    private final Color PLAYER1_COLOR = new Color(0, 200, 255);
+    private final Color PLAYER2_COLOR = new Color(255, 100, 0);
+    private final Color OBJECTIVE_COLOR = new Color(100, 255, 100);
+    private final Color TIP_COLOR = new Color(255, 215, 100);
 
-    private String[] player1Keys = {"W", "A", "S", "D", "F", "G"};
-    private String[] player1Actions = {"Move Up", "Move Left", "Move Down", "Move Right", "Attack", "Special"};
+    private String[] player1Keys = {"R", "LEFT", "DOWN", "RIGHT", "NORMAL", "SPECIAL"};
+    private String[] player1Actions = {"Move Up R", "Move Left", "Move Down", "Move Right", "Normal Attack", "Special Attack"};
 
-    private String[] player2Keys = {"UP", "LEFT", "DOWN", "RIGHT", "ENTER", "SHIFT"};
-    private String[] player2Actions = {"Move Up", "Move Left", "Move Down", "Move Right", "Attack", "Special"};
+    private String[] player2Keys = {"↑", "←", "↓", "→", "ENTER", "SHIFT"};
+    private String[] player2Actions = {"Move Up", "Move Left", "Move Down", "Move Right", "Normal Attack", "Special Attack"};
 
     private String[] objectives = {
-            "• Defeat opponent by reducing health to zero.",
-            "• Normal attacks deal 10 damage.",
-            "• Special attacks deal 20 damage (Need Full Power).",
-            "• Power bar fills automatically over time."
+            "First player to defeat opponent wins!",
+            "Defeat your opponent by reducing their health to zero!",
+            "Normal attacks deal 10 damage.",
+            "Special attacks deal 20 damage (double damage).",
+            "Special attacks require full power bar.",
+            "Power bar fills automatically over time.",
+            "Move strategically to avoid enemy attacks."
+    };
+
+    private String[] tips = {
+            "🔥 Keep moving to dodge attacks!",
+            "💡 Use special attacks when power bar is full!",
+            "🎯 Attack from safe distance!",
+            "⚡ Mix normal and special attacks!",
+            "🚫 Avoid direct confrontation!",
+            "🎮 First to detect opponent wins!"
     };
 
     public HowToPlayScreen() {
-        titleRenderer = new TextRenderer(new Font("Impact", Font.BOLD, 55), true, true);
-        headerRenderer = new TextRenderer(new Font("Arial", Font.BOLD, 30), true, true);
-        textRenderer = new TextRenderer(new Font("Arial", Font.PLAIN, 20), true, true);
-        keyRenderer = new TextRenderer(new Font("Arial", Font.BOLD, 18), true, true);
+        titleRenderer = new TextRenderer(new Font("Arial Black", Font.BOLD, 60), true, true);
+        sectionRenderer = new TextRenderer(new Font("Arial", Font.BOLD, 32), true, true);
+        textRenderer = new TextRenderer(new Font("Arial", Font.PLAIN, 24), true, true);
+        keyRenderer = new TextRenderer(new Font("Arial", Font.BOLD, 20), true, true);
     }
 
     public void draw(GL gl, TextureLoader loader, int mouseX, int mouseY) {
-        if (bg == null) bg = loader.load("background/bg.png");
-        if (bg != null) {
-            gl.glColor3f(1, 1, 1);
-            loader.draw(gl, bg, 0, 0, 1280, 720);
+        if (bg == null) {
+            bg = loader.load("background/bg.png");
         }
 
-        gl.glDisable(GL.GL_TEXTURE_2D);
-        gl.glEnable(GL.GL_BLEND);
-        gl.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA);
-
-        gl.glColor4f(0, 0, 0, 0.7f);
-        gl.glBegin(GL.GL_QUADS);
-        gl.glVertex2f(0, 0);
-        gl.glVertex2f(1280, 0);
-        gl.glVertex2f(1280, 720);
-        gl.glVertex2f(0, 720);
-        gl.glEnd();
-        gl.glEnable(GL.GL_TEXTURE_2D);
+        if (bg != null) {
+            loader.draw(gl, bg, 0, 0, 1280, 720);
+        } else {
+            drawGradientBackground(gl);
+        }
 
         drawTitle(gl);
-        drawObjectives(gl);
-        drawControls(gl);
+        drawControlsSection(gl);
+        drawObjectiveSection(gl);
+        drawTipsSection(gl);
         drawFooter(gl);
     }
 
+    private void drawGradientBackground(GL gl) {
+        gl.glDisable(GL.GL_TEXTURE_2D);
+
+        gl.glBegin(GL.GL_QUADS);
+
+        gl.glColor3f(0.05f, 0.05f, 0.15f);
+        gl.glVertex2f(0, 0);
+        gl.glVertex2f(1280, 0);
+
+        gl.glColor3f(0.0f, 0.0f, 0.0f);
+        gl.glVertex2f(1280, 720);
+        gl.glVertex2f(0, 720);
+
+        gl.glEnd();
+
+        gl.glEnable(GL.GL_TEXTURE_2D);
+    }
+
     private void drawTitle(GL gl) {
+        titleRenderer.beginRendering(1280, 720);
+        titleRenderer.setColor(TITLE_COLOR);
+
         String title = "HOW TO PLAY";
         Rectangle2D bounds = titleRenderer.getBounds(title);
-        int x = (int) (1280 - bounds.getWidth()) / 2;
-        int y = 80;
+        int x = (int)((1280 - bounds.getWidth()) / 2);
 
-        titleRenderer.beginRendering(1280, 720);
-        titleRenderer.setColor(new Color(255, 255, 0, 100));
-        titleRenderer.draw(title, x + 4, 720 - y - 4);
-        titleRenderer.setColor(Color.YELLOW);
-        titleRenderer.draw(title, x, 720 - y);
+        drawTextBackground(gl, x - 30, 630, (int)bounds.getWidth() + 60, 80, new Color(0, 0, 0, 150));
+        drawGlowingBorder(gl, x - 40, 620, (int)bounds.getWidth() + 80, 100, TITLE_COLOR);
+
+        titleRenderer.draw(title, x, 650);
         titleRenderer.endRendering();
     }
 
-    private void drawObjectives(GL gl) {
-        int panelX = 240;
-        int panelY = 100;
-        int panelW = 800;
-        int panelH = 220;
+    private void drawControlsSection(GL gl) {
+        int player1X = 150;
+        int player2X = 750;
+        int startY = 500;
 
-        drawCyberpunkPanel(gl, panelX, panelY, panelW, panelH, COLOR_OBJ_THEME);
+        drawPlayerSection(gl, "PLAYER 1", player1X, startY, PLAYER1_COLOR, player1Keys, player1Actions);
+        drawPlayerSection(gl, "PLAYER 2", player2X, startY, PLAYER2_COLOR, player2Keys, player2Actions);
+    }
 
-        headerRenderer.beginRendering(1280, 720);
-        headerRenderer.setColor(COLOR_OBJ_THEME);
-        headerRenderer.draw("GAME OBJECTIVES", 550, 720 - (panelY + 50));
-        headerRenderer.endRendering();
+    private void drawPlayerSection(GL gl, String title, int x, int y, Color color, String[] keys, String[] actions) {
+        drawSectionBackground(gl, x, y - 280, 380, 300, color);
+
+        sectionRenderer.beginRendering(1280, 720);
+        sectionRenderer.setColor(color);
+
+        Rectangle2D bounds = sectionRenderer.getBounds(title);
+        int titleX = (int)(x + (380 - bounds.getWidth()) / 2);
+        sectionRenderer.draw(title, titleX, 720 - y + 20);
+        sectionRenderer.endRendering();
 
         textRenderer.beginRendering(1280, 720);
-        textRenderer.setColor(COLOR_TEXT_WHITE);
-        int textStartY = panelY + 90;
-        for (String obj : objectives) {
-            textRenderer.draw(obj, panelX + 40, 720 - textStartY);
-            textStartY += 35;
+        textRenderer.setColor(Color.WHITE);
+
+        int controlY = y - 40;
+        for (int i = 0; i < keys.length; i++) {
+            drawKeyBox(gl, x + 20, controlY, keys[i], color);
+            textRenderer.draw(actions[i], x + 120, 720 - controlY - 15);
+            controlY -= 40;
         }
+
         textRenderer.endRendering();
     }
 
-    private void drawControls(GL gl) {
-        int startY = 360;
-
-        int p1X = 140;
-        int p2X = 740;
-        int panelW = 400;
-        int panelH = 320;
-
-        drawCyberpunkPanel(gl, p1X, startY, panelW, panelH, COLOR_P1_THEME);
-
-        headerRenderer.beginRendering(1280, 720);
-        headerRenderer.setColor(COLOR_P1_THEME);
-        headerRenderer.draw("PLAYER 1 (LEFT)", p1X + 80, 720 - (startY + 40));
-        headerRenderer.endRendering();
-
-        drawKeyList(gl, p1X + 30, startY + 70, player1Keys, player1Actions, COLOR_P1_THEME);
-
-        drawCyberpunkPanel(gl, p2X, startY, panelW, panelH, COLOR_P2_THEME);
-
-        headerRenderer.beginRendering(1280, 720);
-        headerRenderer.setColor(COLOR_P2_THEME);
-        headerRenderer.draw("PLAYER 2 (RIGHT)", p2X + 80, 720 - (startY + 40));
-        headerRenderer.endRendering();
-
-        drawKeyList(gl, p2X + 30, startY + 70, player2Keys, player2Actions, COLOR_P2_THEME);
-    }
-
-    private void drawKeyList(GL gl, int x, int startY, String[] keys, String[] actions, Color themeColor) {
-        int currentY = startY;
-
-        for (int i = 0; i < keys.length; i++) {
-            drawKeyBox(gl, x, currentY, keys[i], themeColor);
-
-            textRenderer.beginRendering(1280, 720);
-            textRenderer.setColor(Color.WHITE);
-            textRenderer.draw(actions[i], x + 100, 720 - (currentY + 22));
-            textRenderer.endRendering();
-
-            currentY += 40;
-        }
-    }
-
-    private void drawKeyBox(GL gl, int x, int y, String key, Color color) {
-        int width = 80;
-        int height = 30;
-
+    private void drawKeyBox(GL gl, float x, float y, String key, Color color) {
         gl.glDisable(GL.GL_TEXTURE_2D);
 
-        gl.glColor4f(color.getRed()/255f, color.getGreen()/255f, color.getBlue()/255f, 0.3f);
+        gl.glColor4f(color.getRed()/255f, color.getGreen()/255f, color.getBlue()/255f, 0.8f);
         gl.glBegin(GL.GL_QUADS);
         gl.glVertex2f(x, y);
-        gl.glVertex2f(x + width, y);
-        gl.glVertex2f(x + width, y + height);
-        gl.glVertex2f(x, y + height);
+        gl.glVertex2f(x + 70, y);
+        gl.glVertex2f(x + 70, y + 30);
+        gl.glVertex2f(x, y + 30);
         gl.glEnd();
 
-        gl.glLineWidth(2.0f);
-        gl.glColor4f(color.getRed()/255f, color.getGreen()/255f, color.getBlue()/255f, 1.0f);
+        gl.glColor4f(1, 1, 1, 0.9f);
+        gl.glLineWidth(2);
         gl.glBegin(GL.GL_LINE_LOOP);
         gl.glVertex2f(x, y);
-        gl.glVertex2f(x + width, y);
-        gl.glVertex2f(x + width, y + height);
-        gl.glVertex2f(x, y + height);
+        gl.glVertex2f(x + 70, y);
+        gl.glVertex2f(x + 70, y + 30);
+        gl.glVertex2f(x, y + 30);
         gl.glEnd();
+        gl.glLineWidth(1);
 
         gl.glEnable(GL.GL_TEXTURE_2D);
 
         keyRenderer.beginRendering(1280, 720);
         keyRenderer.setColor(Color.WHITE);
-        Rectangle2D bounds = keyRenderer.getBounds(key);
-        int textX = x + (width - (int)bounds.getWidth()) / 2;
-        int textY = 720 - (y + 22);
-        keyRenderer.draw(key, textX, textY);
+
+        int textWidth = (int) keyRenderer.getBounds(key).getWidth();
+        int textX = (int)(x + (70 - textWidth) / 2);
+        keyRenderer.draw(key, textX, (int)(720 - y - 22));
+
         keyRenderer.endRendering();
     }
 
-    private void drawCyberpunkPanel(GL gl, int x, int y, int w, int h, Color borderColor) {
+    private void drawObjectiveSection(GL gl) {
+        int x = 150;
+        int y = 200;
+
+        drawSectionBackground(gl, x, y - 150, 980, 170, OBJECTIVE_COLOR);
+
+        sectionRenderer.beginRendering(1280, 720);
+        sectionRenderer.setColor(OBJECTIVE_COLOR);
+        sectionRenderer.draw("GAME OBJECTIVE", x + 340, 720 - y + 20);
+        sectionRenderer.endRendering();
+
+        textRenderer.beginRendering(1280, 720);
+        textRenderer.setColor(Color.WHITE);
+
+        int textY = y - 40;
+        for (String objective : objectives) {
+            textRenderer.draw("• " + objective, x + 20, 720 - textY);
+            textY -= 25;
+        }
+
+        textRenderer.endRendering();
+    }
+
+    private void drawTipsSection(GL gl) {
+        int x = 150;
+        int y = 50;
+
+        drawSectionBackground(gl, x, y - 60, 980, 80, TIP_COLOR);
+
+        textRenderer.beginRendering(1280, 720);
+        textRenderer.setColor(TIP_COLOR);
+
+        int tipX = x + 20;
+        int tipY = y - 20;
+
+        for (int i = 0; i < tips.length; i++) {
+            textRenderer.draw(tips[i], tipX, 720 - tipY);
+
+            if (i % 2 == 0) {
+                tipX += 450;
+            } else {
+                tipX = x + 20;
+                tipY -= 30;
+            }
+        }
+
+        textRenderer.endRendering();
+    }
+
+    private void drawSectionBackground(GL gl, int x, int y, int width, int height, Color color) {
         gl.glDisable(GL.GL_TEXTURE_2D);
 
-        gl.glColor4f(0.05f, 0.05f, 0.1f, 0.85f);
+        Color bgColor = new Color(color.getRed()/10, color.getGreen()/10, color.getBlue()/10, 100);
+
+        gl.glColor4f(bgColor.getRed()/255f, bgColor.getGreen()/255f, bgColor.getBlue()/255f, bgColor.getAlpha()/255f);
         gl.glBegin(GL.GL_QUADS);
         gl.glVertex2f(x, y);
-        gl.glVertex2f(x + w, y);
-        gl.glVertex2f(x + w, y + h);
-        gl.glVertex2f(x, y + h);
+        gl.glVertex2f(x + width, y);
+        gl.glVertex2f(x + width, y + height);
+        gl.glVertex2f(x, y + height);
         gl.glEnd();
 
-        gl.glLineWidth(3.0f);
-        gl.glColor4f(borderColor.getRed()/255f, borderColor.getGreen()/255f, borderColor.getBlue()/255f, 0.8f);
-        gl.glBegin(GL.GL_LINE_LOOP);
-        gl.glVertex2f(x, y);
-        gl.glVertex2f(x + w, y);
-        gl.glVertex2f(x + w, y + h);
-        gl.glVertex2f(x, y + h);
-        gl.glEnd();
-
-        gl.glBegin(GL.GL_LINES);
-        gl.glVertex2f(x, y + 20);
-        gl.glVertex2f(x + 20, y);
-        gl.glEnd();
+        drawGlowingBorder(gl, x, y, width, height, color);
 
         gl.glEnable(GL.GL_TEXTURE_2D);
     }
 
+    private void drawGlowingBorder(GL gl, int x, int y, int width, int height, Color color) {
+        gl.glDisable(GL.GL_TEXTURE_2D);
+
+        gl.glColor4f(color.getRed()/255f, color.getGreen()/255f, color.getBlue()/255f, 0.7f);
+        gl.glLineWidth(3);
+        gl.glBegin(GL.GL_LINE_LOOP);
+        gl.glVertex2f(x, y);
+        gl.glVertex2f(x + width, y);
+        gl.glVertex2f(x + width, y + height);
+        gl.glVertex2f(x, y + height);
+        gl.glEnd();
+        gl.glLineWidth(1);
+
+        gl.glEnable(GL.GL_TEXTURE_2D);
+    }
+
+    private void drawTextBackground(GL gl, int x, int y, int width, int height, Color color) {
+        gl.glDisable(GL.GL_TEXTURE_2D);
+        gl.glColor4f(color.getRed()/255f, color.getGreen()/255f, color.getBlue()/255f, color.getAlpha()/255f);
+        gl.glBegin(GL.GL_QUADS);
+        gl.glVertex2f(x, y);
+        gl.glVertex2f(x + width, y);
+        gl.glVertex2f(x + width, y + height);
+        gl.glVertex2f(x, y + height);
+        gl.glEnd();
+        gl.glEnable(GL.GL_TEXTURE_2D);
+    }
+
     private void drawFooter(GL gl) {
-        String text = "PRESS [ESC] TO RETURN";
         textRenderer.beginRendering(1280, 720);
-        textRenderer.setColor(Color.GRAY);
-        Rectangle2D bounds = textRenderer.getBounds(text);
-        textRenderer.draw(text, (int)(1280 - bounds.getWidth())/2, 30);
+        textRenderer.setColor(Color.YELLOW);
+
+        String footer = "Press ESC to return to Main Menu";
+        Rectangle2D bounds = textRenderer.getBounds(footer);
+        int x = (int)((1280 - bounds.getWidth()) / 2);
+
+        drawTextBackground(gl, x - 20, 20, (int)bounds.getWidth() + 40, 40, new Color(0, 0, 0, 150));
+
+        textRenderer.draw(footer, x, 40);
         textRenderer.endRendering();
     }
 }
