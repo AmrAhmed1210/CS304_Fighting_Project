@@ -2,6 +2,7 @@ package engine;
 
 import com.sun.opengl.util.Animator;
 import com.sun.opengl.util.texture.Texture;
+import engine.buttons.CreditsButton;
 import entities.Player;
 import javax.media.opengl.*;
 import com.sun.opengl.util.j2d.TextRenderer;
@@ -13,7 +14,7 @@ import java.io.*;
 
 public class Game implements GLEventListener, KeyListener, MouseListener, MouseMotionListener {
 
-    public enum State { MENU, ENTER_NAME, CHARACTER_SELECT, HOW_TO_PLAY, PLAYING, SETTINGS, LEVELS, PAUSE, LEVEL_COMPLETE }
+    public enum State { MENU, ENTER_NAME, CHARACTER_SELECT, HOW_TO_PLAY, PLAYING, SETTINGS, LEVELS, PAUSE, LEVEL_COMPLETE, CREDITS }
     public State gameState = State.MENU;
     public AccountInputScreen inputScreen;
     CharacterSelectScreen characterSelectScreen;
@@ -143,7 +144,10 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
     public void display(GLAutoDrawable d) {
         GL gl = d.getGL();
         gl.glClear(GL.GL_COLOR_BUFFER_BIT);
-
+        if (gameState == State.CREDITS) {
+            CreditsButton.drawCreditsScreen(gl, loader);
+            return;
+        }
         if (gameState == State.SETTINGS) {
             soundSettingsScreen.draw(gl, loader, mouseX, mouseY, this);
             return;
@@ -404,6 +408,10 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
 
     public void keyPressed(KeyEvent e) {
         int k = e.getKeyCode();
+        if (gameState == State.CREDITS) {
+            CreditsButton.handleInput(k, this);
+            return;
+        }
 
         if (gameState == State.PAUSE) {
             pauseMenu.handleInput(k, this);
