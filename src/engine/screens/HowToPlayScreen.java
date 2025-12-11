@@ -1,280 +1,643 @@
-package engine.screens;
+package engine;
 
-import engine.TextureLoader;
-import com.sun.opengl.util.j2d.TextRenderer;
+import com.sun.opengl.util.Animator;
 import com.sun.opengl.util.texture.Texture;
-import javax.media.opengl.GL;
-import java.awt.*;
-import java.awt.geom.Rectangle2D;
+import entities.Player;
+import javax.media.opengl.*;
+import com.sun.opengl.util.j2d.TextRenderer;
+import javax.swing.*;
+import java.awt.event.*;
+import java.awt.Font;
+import engine.screens.*;
+import java.io.*;
 
-public class HowToPlayScreen {
-    private TextRenderer titleRenderer;
-    private TextRenderer sectionRenderer;
-    private TextRenderer textRenderer;
-    private TextRenderer keyRenderer;
-    private Texture bg;
+public class Game implements GLEventListener, KeyListener, MouseListener, MouseMotionListener {
 
-    private final Color TITLE_COLOR = new Color(255, 215, 0);
-    private final Color PLAYER1_COLOR = new Color(0, 200, 255);
-    private final Color PLAYER2_COLOR = new Color(255, 100, 0);
-    private final Color OBJECTIVE_COLOR = new Color(100, 255, 100);
-    private final Color TIP_COLOR = new Color(255, 215, 100);
+    public enum State { MENU, ENTER_NAME, CHARACTER_SELECT, HOW_TO_PLAY, PLAYING, SETTINGS, LEVELS, PAUSE, LEVEL_COMPLETE }
+    public State gameState = State.MENU;
+    public AccountInputScreen inputScreen;
+    CharacterSelectScreen characterSelectScreen;
+    HowToPlayScreen howToPlayScreen;
+    SoundSettingsScreen soundSettingsScreen;
+    LevelsScreen levelsScreen;
+    PauseMenu pauseMenu;
+    LevelCompleteScreen levelCompleteScreen;
 
-    private String[] player1Keys = {"R", "LEFT", "DOWN", "RIGHT", "NORMAL", "SPECIAL"};
-    private String[] player1Actions = {"Move Up R", "Move Left", "Move Down", "Move Right", "Normal Attack", "Special Attack"};
+    TextureLoader loader = new TextureLoader();
+    Texture bg;
+    Texture menuBg;
 
-    private String[] player2Keys = {"↑", "←", "↓", "→", "ENTER", "SHIFT"};
-    private String[] player2Actions = {"Move Up", "Move Left", "Move Down", "Move Right", "Normal Attack", "Special Attack"};
+    MainMenu mainMenu;
 
-    private String[] objectives = {
-            "First player to defeat opponent wins!",
-            "Defeat your opponent by reducing their health to zero!",
-            "Normal attacks deal 10 damage.",
-            "Special attacks deal 20 damage (double damage).",
-            "Special attacks require full power bar.",
-            "Power bar fills automatically over time.",
-            "Move strategically to avoid enemy attacks."
-    };
+    public Player p1;
+    public Player p2;
+    AIController aiController;
+    public boolean gameOver = false;
+    public String winnerName = "";
+    public int winTimer = 0;
+    TextRenderer textRenderer;
 
-    private String[] tips = {
-            "🔥 Keep moving to dodge attacks!",
-            "💡 Use special attacks when power bar is full!",
-            "🎯 Attack from safe distance!",
-            "⚡ Mix normal and special attacks!",
-            "🚫 Avoid direct confrontation!",
-            "🎮 First to detect opponent wins!"
-    };
+    int mouseX = 0;
+    int mouseY = 0;
 
-    public HowToPlayScreen() {
-        titleRenderer = new TextRenderer(new Font("Arial Black", Font.BOLD, 60), true, true);
-        sectionRenderer = new TextRenderer(new Font("Arial", Font.BOLD, 32), true, true);
-        textRenderer = new TextRenderer(new Font("Arial", Font.PLAIN, 24), true, true);
-        keyRenderer = new TextRenderer(new Font("Arial", Font.BOLD, 20), true, true);
+    public String selectedCharacter = "BEE";
+    public boolean vsComputer = true;
+
+    public int currentLevel = 1;
+    public int maxUnlockedLevel = 1;
+    private static final String PROGRESS_FILE = "game_progress.dat";
+
+    public static SoundManager soundManager;
+    private boolean gameStartSoundPlayed = false;
+
+    public void init(GLAutoDrawable d) {
+        GL gl = d.getGL();
+        gl.glEnable(GL.GL_TEXTURE_2D);
+        gl.glEnable(GL.GL_BLEND);
+        gl.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA);
+        gl.glClearColor(0, 0, 0, 1);
+
+        gl.glMatrixMode(GL.GL_PROJECTION);
+        gl.glLoadIdentity();
+        gl.glOrtho(0, 1280, 720, 0, -1, 1);
+        gl.glMatrixMode(GL.GL_MODELVIEW);
+        gl.glLoadIdentity();
+
+        bg = loader.load("background/bg.png");
+        menuBg = loader.load("background/bg_menu.png");
+
+        mainMenu = new MainMenu();
+        inputScreen = new AccountInputScreen();
+        characterSelectScreen = new CharacterSelectScreen();
+        howToPlayScreen = new HowToPlayScreen();
+        soundSettingsScreen = new SoundSettingsScreen();
+        levelsScreen = new LevelsScreen();
+        pauseMenu = new PauseMenu();
+        levelCompleteScreen = new LevelCompleteScreen();
+
+        loadProgress();
+
+        PlayerAnimator a1 = new PlayerAnimator("player1");
+        PlayerAnimator a2 = new PlayerAnimator("player2");
+
+        p1 = new Player(a1, true, "Player 1");
+        p2 = new Player(a2, false, "KREE");
+
+        textRenderer = new TextRenderer(new Font("Arial", Font.BOLD, 20), true, true);
+
+        aiController = new AIController(p2, p1, currentLevel);
+
+        soundManager = new SoundManager();
+        soundManager.playStartSound();
     }
 
-    public void draw(GL gl, TextureLoader loader, int mouseX, int mouseY) {
-        if (bg == null) {
-            bg = loader.load("background/bg.png");
+    private void loadProgress() {
+        try {
+            File file = new File(PROGRESS_FILE);
+            if (file.exists()) {
+                BufferedReader reader = new BufferedReader(new FileReader(file));
+                maxUnlockedLevel = Integer.parseInt(reader.readLine());
+                reader.close();
+            }
+        } catch (Exception e) {
+            System.out.println("Could not load progress, starting from level 1");
+            maxUnlockedLevel = 1;
+        }
+    }
+
+    private void saveProgress() {
+        try {
+            BufferedWriter writer = new BufferedWriter(new FileWriter(PROGRESS_FILE));
+            writer.write(String.valueOf(maxUnlockedLevel));
+            writer.close();
+        } catch (Exception e) {
+            System.out.println("Could not save progress");
+        }
+    }
+
+    public void unlockNextLevel() {
+        if (currentLevel == maxUnlockedLevel) {
+            maxUnlockedLevel++;
+            saveProgress();
+        }
+    }
+
+    public void restartLevel() {
+        gameOver = false;
+        winnerName = "";
+        winTimer = 0;
+        gameStartSoundPlayed = false;
+
+        if (p1 != null) p1.reset();
+        if (p2 != null) p2.reset();
+
+        resetGameLogic();
+
+        if (aiController != null) {
+            aiController = new AIController(p2, p1, currentLevel);
         }
 
-        if (bg != null) {
+        System.out.println("Level " + currentLevel + " restarted!");
+    }
+
+    public void display(GLAutoDrawable d) {
+        GL gl = d.getGL();
+        gl.glClear(GL.GL_COLOR_BUFFER_BIT);
+
+        if (gameState == State.SETTINGS) {
+            soundSettingsScreen.draw(gl, loader, mouseX, mouseY, this);
+            return;
+        }
+
+        if (gameState == State.LEVELS) {
+            levelsScreen.draw(gl, loader, mouseX, mouseY, maxUnlockedLevel);
+            return;
+        }
+
+        if (gameState == State.PAUSE) {
+            pauseMenu.draw(gl, loader, mouseX, mouseY);
+            return;
+        }
+
+        if (gameState == State.LEVEL_COMPLETE) {
+            levelCompleteScreen.draw(gl, loader, mouseX, mouseY, currentLevel, maxUnlockedLevel);
+            return;
+        }
+
+        gl.glColor3f(1, 1, 1);
+
+        if (gameState == State.MENU) {
+            if (menuBg != null) {
+                loader.draw(gl, menuBg, 0, 0, 1280, 720);
+            }
+            mainMenu.draw(gl, loader, mouseX, mouseY);
+        }
+        else if (gameState == State.ENTER_NAME) {
+            inputScreen.draw(gl, loader, mouseX, mouseY);
+        }
+        else if (gameState == State.CHARACTER_SELECT) {
+            characterSelectScreen.draw(gl, loader, mouseX, mouseY);
+        }
+        else if (gameState == State.HOW_TO_PLAY) {
+            howToPlayScreen.draw(gl, loader, mouseX, mouseY);
+        }
+        else {
+            if (!gameStartSoundPlayed && gameState == State.PLAYING) {
+                soundManager.stopStartSound();
+                soundManager.playGameBackground();
+                soundManager.playGameStartSound();
+                gameStartSoundPlayed = true;
+            }
+            playGame(gl);
+        }
+    }
+
+    public void playGame(GL gl) {
+        Texture levelBg = loader.load("background/bg_level" + currentLevel + ".png");
+        if (levelBg == null) {
             loader.draw(gl, bg, 0, 0, 1280, 720);
         } else {
-            drawGradientBackground(gl);
+            loader.draw(gl, levelBg, 0, 0, 1280, 720);
         }
 
-        drawTitle(gl);
-        drawControlsSection(gl);
-        drawObjectiveSection(gl);
-        drawTipsSection(gl);
-        drawFooter(gl);
-    }
+        if (!gameOver) {
+            p1.update();
+            p2.update();
 
-    private void drawGradientBackground(GL gl) {
-        gl.glDisable(GL.GL_TEXTURE_2D);
+            if (vsComputer) {
+                aiController.update();
+            }
 
-        gl.glBegin(GL.GL_QUADS);
+            for (int i = p1.powers.size() - 1; i >= 0; i--) {
+                Player.PlayerPower power = p1.powers.get(i);
+                if (!power.active) {
+                    p1.powers.remove(i);
+                    continue;
+                }
+                float pw = power.isSpecial ? 100f : 70f;
+                float ph = pw;
 
-        gl.glColor3f(0.05f, 0.05f, 0.15f);
-        gl.glVertex2f(0, 0);
-        gl.glVertex2f(1280, 0);
+                if (power.x < p2.x + 180 && power.x + pw > p2.x && power.y < p2.y + 180 && power.y + ph > p2.y) {
+                    p1.powers.remove(i);
+                    p2.takeDamage(power.isSpecial ? 20 : 10, power.isSpecial);
 
-        gl.glColor3f(0.0f, 0.0f, 0.0f);
-        gl.glVertex2f(1280, 720);
-        gl.glVertex2f(0, 720);
+                    if (p2.defeated) {
+                        gameOver = true;
+                        winnerName = p1.playerName;
+                        soundManager.playWinSound();
+                        unlockNextLevel();
+                        resetGameLogic();
+                        gameState = State.LEVEL_COMPLETE;
+                        return;
+                    }
+                }
+            }
 
-        gl.glEnd();
+            for (int i = p2.powers.size() - 1; i >= 0; i--) {
+                Player.PlayerPower power = p2.powers.get(i);
+                if (!power.active) {
+                    p2.powers.remove(i);
+                    continue;
+                }
+                float pw = power.isSpecial ? 100f : 70f;
+                float ph = pw;
 
-        gl.glEnable(GL.GL_TEXTURE_2D);
-    }
+                if (power.x < p1.x + 180 && power.x + pw > p1.x && power.y < p1.y + 180 && power.y + ph > p1.y) {
+                    p2.powers.remove(i);
+                    p1.takeDamage(power.isSpecial ? 20 : 10, power.isSpecial);
 
-    private void drawTitle(GL gl) {
-        titleRenderer.beginRendering(1280, 720);
-        titleRenderer.setColor(TITLE_COLOR);
+                    if (p1.defeated) {
+                        gameOver = true;
+                        winnerName = p2.playerName;
 
-        String title = "HOW TO PLAY";
-        Rectangle2D bounds = titleRenderer.getBounds(title);
-        int x = (int)((1280 - bounds.getWidth()) / 2);
+                        if (vsComputer) {
+                            soundManager.playGameOverSound();
+                        } else {
+                            soundManager.playWinSound();
+                        }
 
-        drawTextBackground(gl, x - 30, 630, (int)bounds.getWidth() + 60, 80, new Color(0, 0, 0, 150));
-        drawGlowingBorder(gl, x - 40, 620, (int)bounds.getWidth() + 80, 100, TITLE_COLOR);
-
-        titleRenderer.draw(title, x, 650);
-        titleRenderer.endRendering();
-    }
-
-    private void drawControlsSection(GL gl) {
-        int player1X = 150;
-        int player2X = 750;
-        int startY = 500;
-
-        drawPlayerSection(gl, "PLAYER 1", player1X, startY, PLAYER1_COLOR, player1Keys, player1Actions);
-        drawPlayerSection(gl, "PLAYER 2", player2X, startY, PLAYER2_COLOR, player2Keys, player2Actions);
-    }
-
-    private void drawPlayerSection(GL gl, String title, int x, int y, Color color, String[] keys, String[] actions) {
-        drawSectionBackground(gl, x, y - 280, 380, 300, color);
-
-        sectionRenderer.beginRendering(1280, 720);
-        sectionRenderer.setColor(color);
-
-        Rectangle2D bounds = sectionRenderer.getBounds(title);
-        int titleX = (int)(x + (380 - bounds.getWidth()) / 2);
-        sectionRenderer.draw(title, titleX, 720 - y + 20);
-        sectionRenderer.endRendering();
-
-        textRenderer.beginRendering(1280, 720);
-        textRenderer.setColor(Color.WHITE);
-
-        int controlY = y - 40;
-        for (int i = 0; i < keys.length; i++) {
-            drawKeyBox(gl, x + 20, controlY, keys[i], color);
-            textRenderer.draw(actions[i], x + 120, 720 - controlY - 15);
-            controlY -= 40;
-        }
-
-        textRenderer.endRendering();
-    }
-
-    private void drawKeyBox(GL gl, float x, float y, String key, Color color) {
-        gl.glDisable(GL.GL_TEXTURE_2D);
-
-        gl.glColor4f(color.getRed()/255f, color.getGreen()/255f, color.getBlue()/255f, 0.8f);
-        gl.glBegin(GL.GL_QUADS);
-        gl.glVertex2f(x, y);
-        gl.glVertex2f(x + 70, y);
-        gl.glVertex2f(x + 70, y + 30);
-        gl.glVertex2f(x, y + 30);
-        gl.glEnd();
-
-        gl.glColor4f(1, 1, 1, 0.9f);
-        gl.glLineWidth(2);
-        gl.glBegin(GL.GL_LINE_LOOP);
-        gl.glVertex2f(x, y);
-        gl.glVertex2f(x + 70, y);
-        gl.glVertex2f(x + 70, y + 30);
-        gl.glVertex2f(x, y + 30);
-        gl.glEnd();
-        gl.glLineWidth(1);
-
-        gl.glEnable(GL.GL_TEXTURE_2D);
-
-        keyRenderer.beginRendering(1280, 720);
-        keyRenderer.setColor(Color.WHITE);
-
-        int textWidth = (int) keyRenderer.getBounds(key).getWidth();
-        int textX = (int)(x + (70 - textWidth) / 2);
-        keyRenderer.draw(key, textX, (int)(720 - y - 22));
-
-        keyRenderer.endRendering();
-    }
-
-    private void drawObjectiveSection(GL gl) {
-        int x = 150;
-        int y = 200;
-
-        drawSectionBackground(gl, x, y - 150, 980, 170, OBJECTIVE_COLOR);
-
-        sectionRenderer.beginRendering(1280, 720);
-        sectionRenderer.setColor(OBJECTIVE_COLOR);
-        sectionRenderer.draw("GAME OBJECTIVE", x + 340, 720 - y + 20);
-        sectionRenderer.endRendering();
-
-        textRenderer.beginRendering(1280, 720);
-        textRenderer.setColor(Color.WHITE);
-
-        int textY = y - 40;
-        for (String objective : objectives) {
-            textRenderer.draw("• " + objective, x + 20, 720 - textY);
-            textY -= 25;
-        }
-
-        textRenderer.endRendering();
-    }
-
-    private void drawTipsSection(GL gl) {
-        int x = 150;
-        int y = 50;
-
-        drawSectionBackground(gl, x, y - 60, 980, 80, TIP_COLOR);
-
-        textRenderer.beginRendering(1280, 720);
-        textRenderer.setColor(TIP_COLOR);
-
-        int tipX = x + 20;
-        int tipY = y - 20;
-
-        for (int i = 0; i < tips.length; i++) {
-            textRenderer.draw(tips[i], tipX, 720 - tipY);
-
-            if (i % 2 == 0) {
-                tipX += 450;
-            } else {
-                tipX = x + 20;
-                tipY -= 30;
+                        resetGameLogic();
+                        return;
+                    }
+                }
             }
         }
 
+        drawPlayerNames(gl);
+        p1.drawHealthBar(gl);
+        p2.drawHealthBar(gl);
+        p1.drawPowerBar(gl);
+        p2.drawPowerBar(gl);
+        drawBarLabels(gl);
+
+        p1.draw(gl, loader);
+        p2.draw(gl, loader);
+
+        drawLevelInfo(gl);
+
+        if (gameOver && gameState != State.LEVEL_COMPLETE) {
+            winTimer++;
+            drawWinMessage(gl);
+        }
+    }
+
+    private void drawLevelInfo(GL gl) {
+        textRenderer.beginRendering(1280, 720);
+        textRenderer.setColor(1f, 1f, 0f, 1f);
+        String levelText = "LEVEL " + currentLevel;
+        textRenderer.draw(levelText, 1280/2 - (levelText.length() * 6), 30);
         textRenderer.endRendering();
     }
 
-    private void drawSectionBackground(GL gl, int x, int y, int width, int height, Color color) {
-        gl.glDisable(GL.GL_TEXTURE_2D);
-
-        Color bgColor = new Color(color.getRed()/10, color.getGreen()/10, color.getBlue()/10, 100);
-
-        gl.glColor4f(bgColor.getRed()/255f, bgColor.getGreen()/255f, bgColor.getBlue()/255f, bgColor.getAlpha()/255f);
-        gl.glBegin(GL.GL_QUADS);
-        gl.glVertex2f(x, y);
-        gl.glVertex2f(x + width, y);
-        gl.glVertex2f(x + width, y + height);
-        gl.glVertex2f(x, y + height);
-        gl.glEnd();
-
-        drawGlowingBorder(gl, x, y, width, height, color);
-
-        gl.glEnable(GL.GL_TEXTURE_2D);
+    public void resetGameLogic() {
+        p1.powers.clear();
+        p2.powers.clear();
+        p1.left = p1.right = p1.up = p1.down = false;
+        p2.left = p2.right = p2.up = p2.down = false;
     }
 
-    private void drawGlowingBorder(GL gl, int x, int y, int width, int height, Color color) {
+    private void drawPlayerNames(GL gl) {
+        textRenderer.beginRendering(1280, 720);
+        textRenderer.setColor(1f, 1f, 1f, 1f);
+        textRenderer.draw(p1.playerName, 50, 80);
+        String p2Name = vsComputer ? "COMPUTER" : p2.playerName;
+        textRenderer.draw(p2Name, 1280 - 50 - (p2Name.length() * 12), 80);
+        textRenderer.endRendering();
+    }
+
+    private void drawBarLabels(GL gl) {
+        com.sun.opengl.util.j2d.TextRenderer tr = new com.sun.opengl.util.j2d.TextRenderer(new java.awt.Font("Arial", java.awt.Font.BOLD, 14));
+
+        int barWidth = 200;
+        int barHeight = 25;
+
+        int p1BarX = 1280 - 50 - barWidth;
+        int p1HealthBarY = 100;
+        int p1PowerBarY = 50;
+
+        int p2BarX = 50;
+        int p2HealthBarY = 100;
+        int p2PowerBarY = 50;
+
+        tr.beginRendering(1280, 720);
+        tr.setColor(1f, 1f, 1f, 1f);
+
+        java.util.function.BiConsumer<java.lang.String, java.awt.Point> drawCentered = (label, pos) -> {
+            int textApproxWidth = label.length() * 8;
+            int textX = pos.x + (barWidth / 2) - (textApproxWidth / 2);
+
+            int centerYTop = pos.y + (barHeight / 2);
+            int textY = 720 - centerYTop - 7;
+            tr.draw(label, textX, textY);
+        };
+
+        drawCentered.accept("HEALTH", new java.awt.Point(p1BarX, p1HealthBarY));
+        drawCentered.accept("SPECIAL POWER", new java.awt.Point(p1BarX, p1PowerBarY));
+
+        drawCentered.accept("HEALTH", new java.awt.Point(p2BarX, p2HealthBarY));
+        drawCentered.accept("SPECIAL POWER", new java.awt.Point(p2BarX, p2PowerBarY));
+
+        tr.endRendering();
+    }
+
+    private void drawWinMessage(GL gl) {
         gl.glDisable(GL.GL_TEXTURE_2D);
 
-        gl.glColor4f(color.getRed()/255f, color.getGreen()/255f, color.getBlue()/255f, 0.7f);
-        gl.glLineWidth(3);
+        float centerX = 1280 / 2;
+        float centerY = 720 / 2;
+
+        gl.glColor4f(0, 0, 0, 0.8f);
+        gl.glBegin(GL.GL_QUADS);
+        gl.glVertex2f(centerX - 350, centerY - 60);
+        gl.glVertex2f(centerX + 350, centerY - 60);
+        gl.glVertex2f(centerX + 350, centerY + 60);
+        gl.glVertex2f(centerX - 350, centerY + 60);
+        gl.glEnd();
+
+        gl.glColor4f(1, 1, 0, 0.8f);
+        gl.glLineWidth(5);
         gl.glBegin(GL.GL_LINE_LOOP);
-        gl.glVertex2f(x, y);
-        gl.glVertex2f(x + width, y);
-        gl.glVertex2f(x + width, y + height);
-        gl.glVertex2f(x, y + height);
+        gl.glVertex2f(centerX - 350, centerY - 60);
+        gl.glVertex2f(centerX + 350, centerY - 60);
+        gl.glVertex2f(centerX + 350, centerY + 60);
+        gl.glVertex2f(centerX - 350, centerY + 60);
         gl.glEnd();
         gl.glLineWidth(1);
 
-        gl.glEnable(GL.GL_TEXTURE_2D);
-    }
+        long currentTime = System.currentTimeMillis();
+        float pulse = (float) Math.sin(currentTime * 0.01) * 0.3f + 0.7f;
 
-    private void drawTextBackground(GL gl, int x, int y, int width, int height, Color color) {
-        gl.glDisable(GL.GL_TEXTURE_2D);
-        gl.glColor4f(color.getRed()/255f, color.getGreen()/255f, color.getBlue()/255f, color.getAlpha()/255f);
-        gl.glBegin(GL.GL_QUADS);
-        gl.glVertex2f(x, y);
-        gl.glVertex2f(x + width, y);
-        gl.glVertex2f(x + width, y + height);
-        gl.glVertex2f(x, y + height);
-        gl.glEnd();
-        gl.glEnable(GL.GL_TEXTURE_2D);
-    }
+        if (winTimer < 30) {
+            gl.glColor4f(1, 0.5f, 0, pulse);
+        } else if (winTimer < 60) {
+            gl.glColor4f(1, 1, 0, pulse);
+        } else {
+            gl.glColor4f(0, 1, 0, pulse);
+        }
 
-    private void drawFooter(GL gl) {
+        String winText = winnerName + " WINS!";
+
+        if (vsComputer && winnerName.equals(p1.playerName)) {
+            winText += " LEVEL " + currentLevel + " COMPLETED!";
+        }
+
         textRenderer.beginRendering(1280, 720);
-        textRenderer.setColor(Color.YELLOW);
+        textRenderer.setColor(1f, 1f, 1f, 1f);
 
-        String footer = "Press ESC to return to Main Menu";
-        Rectangle2D bounds = textRenderer.getBounds(footer);
-        int x = (int)((1280 - bounds.getWidth()) / 2);
+        int textWidth = winText.length() * 15;
+        int textX = (int) (centerX - textWidth / 2);
+        int textY = (int) centerY - 10;
 
-        drawTextBackground(gl, x - 20, 20, (int)bounds.getWidth() + 40, 40, new Color(0, 0, 0, 150));
-
-        textRenderer.draw(footer, x, 40);
+        textRenderer.draw(winText, textX, textY);
         textRenderer.endRendering();
+
+        gl.glEnable(GL.GL_TEXTURE_2D);
+        gl.glColor3f(1, 1, 1);
+    }
+
+    public void resetSoundFlags() {
+        gameStartSoundPlayed = false;
+    }
+
+    public void reshape(GLAutoDrawable a, int x, int y, int w, int h) {}
+    public void displayChanged(GLAutoDrawable a, boolean b, boolean c) {}
+
+    public void keyPressed(KeyEvent e) {
+        int k = e.getKeyCode();
+
+        if (gameState == State.PAUSE) {
+            pauseMenu.handleInput(k, this);
+            return;
+        }
+
+        if (gameState == State.LEVEL_COMPLETE) {
+            levelCompleteScreen.handleInput(k, this);
+            return;
+        }
+
+        if (gameState == State.PLAYING && k == KeyEvent.VK_ESCAPE) {
+            gameState = State.PAUSE;
+            soundManager.stopGameBackground();
+            return;
+        }
+
+        if (gameState == State.SETTINGS) {
+            soundSettingsScreen.handleInput(k, this);
+            return;
+        }
+
+        if (gameState == State.LEVELS) {
+            levelsScreen.handleInput(k, this);
+            return;
+        }
+
+        if (gameState == State.HOW_TO_PLAY) {
+            if (k == KeyEvent.VK_ESCAPE) {
+                gameState = State.MENU;
+            }
+            return;
+        }
+
+        if (gameState == State.CHARACTER_SELECT) {
+            characterSelectScreen.handleInput(k, this);
+            return;
+        }
+
+        if (gameState == State.ENTER_NAME) {
+            char c = e.getKeyChar();
+
+            if (k == KeyEvent.VK_RIGHT || k == KeyEvent.VK_LEFT) {
+                if (inputScreen.selectedIndex == 0) inputScreen.selectedIndex = 1;
+                else inputScreen.selectedIndex = 0;
+                return;
+            }
+
+            if (k == KeyEvent.VK_ENTER) {
+                inputScreen.buttons.get(inputScreen.selectedIndex).onClick(this);
+                return;
+            }
+
+            if (k == KeyEvent.VK_BACK_SPACE) {
+                if (inputScreen.userName.length() > 0) {
+                    inputScreen.userName.deleteCharAt(inputScreen.userName.length() - 1);
+                }
+            }
+            else if (Character.isLetterOrDigit(c) || c == ' ') {
+                if (inputScreen.userName.length() < 18) {
+                    inputScreen.userName.append(c);
+                }
+            }
+            return;
+        }
+
+        if (gameState == State.MENU) {
+            if (k == KeyEvent.VK_UP) {
+                mainMenu.selectedIndex--;
+                if (mainMenu.selectedIndex < 0) {
+                    mainMenu.selectedIndex = mainMenu.buttons.size() - 1;
+                }
+            }
+            if (k == KeyEvent.VK_DOWN) {
+                mainMenu.selectedIndex++;
+                if (mainMenu.selectedIndex >= mainMenu.buttons.size()) {
+                    mainMenu.selectedIndex = 0;
+                }
+            }
+            if (k == KeyEvent.VK_ENTER) {
+                mainMenu.buttons.get(mainMenu.selectedIndex).onClick(this);
+            }
+            return;
+        }
+
+        if (gameOver) return;
+
+        if (!vsComputer) {
+            if (k == KeyEvent.VK_A) p1.left = true;
+            if (k == KeyEvent.VK_D) p1.right = true;
+            if (k == KeyEvent.VK_W) p1.up = true;
+            if (k == KeyEvent.VK_S) p1.down = true;
+            if (k == KeyEvent.VK_F) p1.attack = true;
+            if (k == KeyEvent.VK_G) p1.special = true;
+
+            if (k == KeyEvent.VK_LEFT) p2.left = true;
+            if (k == KeyEvent.VK_RIGHT) p2.right = true;
+            if (k == KeyEvent.VK_UP) p2.up = true;
+            if (k == KeyEvent.VK_DOWN) p2.down = true;
+            if (k == KeyEvent.VK_ENTER) p2.attack = true;
+            if (k == KeyEvent.VK_SHIFT) p2.special = true;
+        } else {
+            if (k == KeyEvent.VK_A) p1.left = true;
+            if (k == KeyEvent.VK_D) p1.right = true;
+            if (k == KeyEvent.VK_W) p1.up = true;
+            if (k == KeyEvent.VK_S) p1.down = true;
+            if (k == KeyEvent.VK_F) p1.attack = true;
+            if (k == KeyEvent.VK_G) p1.special = true;
+        }
+    }
+
+    public void keyReleased(KeyEvent e) {
+        if (gameState == State.MENU) return;
+
+        int k = e.getKeyCode();
+
+        if (!vsComputer) {
+            if (k == KeyEvent.VK_A) p1.left = false;
+            if (k == KeyEvent.VK_D) p1.right = false;
+            if (k == KeyEvent.VK_W) p1.up = false;
+            if (k == KeyEvent.VK_S) p1.down = false;
+            if (k == KeyEvent.VK_F) p1.attack = false;
+            if (k == KeyEvent.VK_G) p1.special = false;
+
+            if (k == KeyEvent.VK_LEFT) p2.left = false;
+            if (k == KeyEvent.VK_RIGHT) p2.right = false;
+            if (k == KeyEvent.VK_UP) p2.up = false;
+            if (k == KeyEvent.VK_DOWN) p2.down = false;
+            if (k == KeyEvent.VK_ENTER) p2.attack = false;
+            if (k == KeyEvent.VK_SHIFT) p2.special = false;
+        } else {
+            if (k == KeyEvent.VK_A) p1.left = false;
+            if (k == KeyEvent.VK_D) p1.right = false;
+            if (k == KeyEvent.VK_W) p1.up = false;
+            if (k == KeyEvent.VK_S) p1.down = false;
+            if (k == KeyEvent.VK_F) p1.attack = false;
+            if (k == KeyEvent.VK_G) p1.special = false;
+        }
+    }
+
+    public void keyTyped(KeyEvent e) {}
+
+    @Override
+    public void mouseClicked(MouseEvent e) {
+        if (gameState == State.PAUSE) {
+            for (Button b : pauseMenu.buttons) {
+                if (b.isInside(mouseX, mouseY)) {
+                    b.onClick(this);
+                }
+            }
+            return;
+        }
+
+        if (gameState == State.LEVEL_COMPLETE) {
+            for (Button b : levelCompleteScreen.buttons) {
+                if (b.isInside(mouseX, mouseY)) {
+                    b.onClick(this);
+                }
+            }
+            return;
+        }
+
+        if (gameState == State.SETTINGS) {
+            for (Button b : soundSettingsScreen.buttons) {
+                if (b.isInside(mouseX, mouseY)) {
+                    b.onClick(this);
+                }
+            }
+            return;
+        }
+
+        if (gameState == State.LEVELS) {
+            for (Button b : levelsScreen.buttons) {
+                if (b.isInside(mouseX, mouseY)) {
+                    b.onClick(this);
+                }
+            }
+            return;
+        }
+
+        if (gameState == State.MENU) {
+            for (Button b : mainMenu.buttons) {
+                if (b.isInside(mouseX, mouseY)) {
+                    b.onClick(this);
+                }
+            }
+        }
+        else if (gameState == State.ENTER_NAME) {
+            for (Button b : inputScreen.buttons) {
+                if (b.isInside(mouseX, mouseY)) {
+                    b.onClick(this);
+                }
+            }
+        }
+        else if (gameState == State.CHARACTER_SELECT) {
+            for (Button b : characterSelectScreen.buttons) {
+                if (b.isInside(mouseX, mouseY)) {
+                    b.onClick(this);
+                }
+            }
+        }
+    }
+
+    @Override
+    public void mouseMoved(MouseEvent e) {
+        mouseX = e.getX();
+        mouseY = e.getY();
+    }
+
+    public void mousePressed(MouseEvent e) {}
+    public void mouseReleased(MouseEvent e) {}
+    public void mouseEntered(MouseEvent e) {}
+    public void mouseExited(MouseEvent e) {}
+    public void mouseDragged(MouseEvent e) {}
+
+    public void start() {
+        JFrame w = new JFrame("Fighting Game");
+        GLCanvas c = new GLCanvas();
+        c.addGLEventListener(this);
+        c.addKeyListener(this);
+        c.addMouseListener(this);
+        c.addMouseMotionListener(this);
+        w.add(c);
+        w.setSize(1280, 720);
+        w.setResizable(false);
+        w.setVisible(true);
+        w.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        c.requestFocus();
+
+        Animator a = new Animator(c);
+        a.start();
+    }
+
+    public static void main(String[] args) {
+        new Game().start();
     }
 }
