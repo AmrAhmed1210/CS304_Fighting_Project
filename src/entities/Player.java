@@ -270,4 +270,14 @@ public class Player {
         if (defeated) return false;
         return px > x && px < x + 180 && py > y && py < y + 180;
     }
+
+    public void reset() {
+        x = isPlayer1 ? 200 : 900;
+        y = 300;
+        health = 100;
+        specialCooldown = 0;
+        defeated = false;
+        powers.clear();
+        left = right = up = down = attack = special = false;
+    }
 }

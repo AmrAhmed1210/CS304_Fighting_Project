@@ -8,18 +8,20 @@ import com.sun.opengl.util.j2d.TextRenderer;
 import javax.swing.*;
 import java.awt.event.*;
 import java.awt.Font;
-import engine.screens.*;
 import java.io.*;
+
+import engine.screens.*;
 
 public class Game implements GLEventListener, KeyListener, MouseListener, MouseMotionListener {
 
-    public enum State { MENU, ENTER_NAME, CHARACTER_SELECT, HOW_TO_PLAY, PLAYING, SETTINGS, LEVELS }
+    public enum State { MENU, ENTER_NAME, CHARACTER_SELECT, HOW_TO_PLAY, PLAYING, SETTINGS, LEVELS, PAUSE }
     public State gameState = State.MENU;
     public AccountInputScreen inputScreen;
     CharacterSelectScreen characterSelectScreen;
     HowToPlayScreen howToPlayScreen;
     SoundSettingsScreen soundSettingsScreen;
     LevelsScreen levelsScreen;
+    PauseMenu pauseMenu;
 
     TextureLoader loader = new TextureLoader();
     Texture bg;
@@ -29,7 +31,7 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
 
     public Player p1;
     public Player p2;
-    AIController aiController;
+    public AIController aiController;
     public boolean gameOver = false;
     public String winnerName = "";
     public int winTimer = 0;
@@ -70,6 +72,7 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
         howToPlayScreen = new HowToPlayScreen();
         soundSettingsScreen = new SoundSettingsScreen();
         levelsScreen = new LevelsScreen();
+        pauseMenu = new PauseMenu();
 
         loadProgress();
 
@@ -132,6 +135,12 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
             return;
         }
 
+        if (gameState == State.PAUSE) {
+            drawGameBackground(gl);
+            pauseMenu.draw(gl, loader, mouseX, mouseY);
+            return;
+        }
+
         gl.glColor3f(1, 1, 1);
 
         if (gameState == State.MENU) {
@@ -158,6 +167,39 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
             }
             playGame(gl);
         }
+    }
+
+    private void drawGameBackground(GL gl) {
+        Texture levelBg = loader.load("background/bg_level" + currentLevel + ".png");
+        if (levelBg == null) {
+            loader.draw(gl, bg, 0, 0, 1280, 720);
+        } else {
+            loader.draw(gl, levelBg, 0, 0, 1280, 720);
+        }
+
+        // رسم اللاعبين والحانات بدون تحديث
+        p1.drawHealthBar(gl);
+        p2.drawHealthBar(gl);
+        p1.drawPowerBar(gl);
+        p2.drawPowerBar(gl);
+        drawBarLabels(gl);
+
+        p1.draw(gl, loader);
+        p2.draw(gl, loader);
+        drawPlayerNames(gl);
+        drawLevelInfo(gl);
+
+        // جعل الشاشة أغمق قليلاً
+        gl.glDisable(GL.GL_TEXTURE_2D);
+        gl.glColor4f(0, 0, 0, 0.5f);
+        gl.glBegin(GL.GL_QUADS);
+        gl.glVertex2f(0, 0);
+        gl.glVertex2f(1280, 0);
+        gl.glVertex2f(1280, 720);
+        gl.glVertex2f(0, 720);
+        gl.glEnd();
+        gl.glEnable(GL.GL_TEXTURE_2D);
+        gl.glColor3f(1, 1, 1);
     }
 
     public void playGame(GL gl) {
@@ -256,11 +298,27 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
         textRenderer.endRendering();
     }
 
-    private void resetGameLogic() {
+    public void resetGameLogic() {
         p1.powers.clear();
         p2.powers.clear();
         p1.left = p1.right = p1.up = p1.down = false;
         p2.left = p2.right = p2.up = p2.down = false;
+    }
+
+    public void restartLevel() {
+        gameOver = false;
+        winnerName = "";
+        winTimer = 0;
+
+        // إعادة تعيين اللاعبين
+        p1.reset();
+        p2.reset();
+
+        // إعادة تعيين التحكم
+        resetGameLogic();
+
+        // إعادة إنشاء AI controller مع المستوى الحالي
+        aiController = new AIController(p2, p1, currentLevel);
     }
 
     private void drawPlayerNames(GL gl) {
@@ -371,6 +429,17 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
 
     public void keyPressed(KeyEvent e) {
         int k = e.getKeyCode();
+
+        if (gameState == State.PAUSE) {
+            pauseMenu.handleInput(k, this);
+            return;
+        }
+
+        if (gameState == State.PLAYING && k == KeyEvent.VK_ESCAPE) {
+            gameState = State.PAUSE;
+            soundManager.stopGameBackground();
+            return;
+        }
 
         if (gameState == State.SETTINGS) {
             soundSettingsScreen.handleInput(k, this);
@@ -499,6 +568,15 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
 
     @Override
     public void mouseClicked(MouseEvent e) {
+        if (gameState == State.PAUSE) {
+            for (Button b : pauseMenu.buttons) {
+                if (b.isInside(mouseX, mouseY)) {
+                    b.onClick(this);
+                }
+            }
+            return;
+        }
+
         if (gameState == State.SETTINGS) {
             for (Button b : soundSettingsScreen.buttons) {
                 if (b.isInside(mouseX, mouseY)) {
