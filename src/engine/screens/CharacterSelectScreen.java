@@ -134,6 +134,15 @@ public class CharacterSelectScreen {
         drawCursor(gl);
     }
 
+    private void drawLevelInfo(GL gl, Game game) {
+        com.sun.opengl.util.j2d.TextRenderer tr = new com.sun.opengl.util.j2d.TextRenderer(new java.awt.Font("Arial", java.awt.Font.BOLD, 24));
+        tr.beginRendering(1280, 720);
+        tr.setColor(1f, 1f, 0f, 1f);
+        String levelText = "SELECTED LEVEL: " + game.currentLevel;
+        tr.draw(levelText, 1280/2 - 100, 720 - 50);
+        tr.endRendering();
+    }
+
     private void drawCursor(GL gl) {
         Button selected = buttons.get(selectedIndex);
 
