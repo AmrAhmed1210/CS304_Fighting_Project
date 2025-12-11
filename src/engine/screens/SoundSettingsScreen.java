@@ -20,11 +20,6 @@ public class SoundSettingsScreen {
 
     private Texture settingsBg;
 
-    private static float musicVolume = 1.0f;
-    private static float sfxVolume = 1.0f;
-    private static boolean musicEnabled = true;
-    private static boolean sfxEnabled = true;
-
     public SoundSettingsScreen() {
         titleRenderer = new TextRenderer(new Font("Arial", Font.BOLD, 50), true, true);
         optionRenderer = new TextRenderer(new Font("Arial", Font.BOLD, 30), true, true);
@@ -39,41 +34,56 @@ public class SoundSettingsScreen {
         buttons.add(new Button(centerX, startY, btnWidth, btnHeight, "MUSIC") {
             @Override
             public void onClick(Game game) {
-                musicEnabled = !musicEnabled;
-                updateSoundSettings(game);
+                if (game.soundManager != null) {
+                    boolean current = game.soundManager.isMusicEnabled();
+                    game.soundManager.setMusicEnabled(!current);
+
+                    // إذا فعلنا الموسيقى وكاننا في القائمة الرئيسية، نعيد تشغيلها
+                    if (!current && game.gameState == Game.State.MENU) {
+                        game.soundManager.playStartSound();
+                    }
+                }
             }
         });
 
         buttons.add(new Button(centerX, startY + gap, btnWidth, btnHeight, "MUSIC VOLUME") {
             @Override
             public void onClick(Game game) {
-                musicVolume -= 0.2f;
-                if (musicVolume < 0) musicVolume = 1.0f;
-                updateSoundSettings(game);
+                if (game.soundManager != null) {
+                    float currentVolume = game.soundManager.getMusicVolume();
+                    float newVolume = currentVolume - 0.2f;
+                    if (newVolume < 0) newVolume = 1.0f;
+                    game.soundManager.setMusicVolume(newVolume);
+                }
             }
         });
 
         buttons.add(new Button(centerX, startY + gap * 2, btnWidth, btnHeight, "SFX") {
             @Override
             public void onClick(Game game) {
-                sfxEnabled = !sfxEnabled;
-                updateSoundSettings(game);
+                if (game.soundManager != null) {
+                    boolean current = game.soundManager.isSFXEnabled();
+                    game.soundManager.setSFXEnabled(!current);
+                }
             }
         });
 
         buttons.add(new Button(centerX, startY + gap * 3, btnWidth, btnHeight, "SFX VOLUME") {
             @Override
             public void onClick(Game game) {
-                sfxVolume -= 0.2f;
-                if (sfxVolume < 0) sfxVolume = 1.0f;
-                updateSoundSettings(game);
+                if (game.soundManager != null) {
+                    float currentVolume = game.soundManager.getSFXVolume();
+                    float newVolume = currentVolume - 0.2f;
+                    if (newVolume < 0) newVolume = 1.0f;
+                    game.soundManager.setSFXVolume(newVolume);
+                }
             }
         });
 
         buttons.add(new Button(centerX, startY + gap * 4, btnWidth, btnHeight, "TEST SOUND") {
             @Override
             public void onClick(Game game) {
-                if (sfxEnabled && game.soundManager != null) {
+                if (game.soundManager != null) {
                     game.soundManager.playShootSound();
                 }
             }
@@ -82,20 +92,7 @@ public class SoundSettingsScreen {
         buttons.add(new BackButton(centerX, startY + gap * 5, btnWidth, btnHeight));
     }
 
-    private void updateSoundSettings(Game game) {
-        if (game.soundManager != null) {
-            if (!musicEnabled) {
-                game.soundManager.stopStartSound();
-                game.soundManager.stopGameBackground();
-            } else {
-                if (game.gameState == Game.State.MENU) {
-                    game.soundManager.playStartSound();
-                }
-            }
-        }
-    }
-
-    public void draw(GL gl, TextureLoader loader, int mouseX, int mouseY) {
+    public void draw(GL gl, TextureLoader loader, int mouseX, int mouseY, Game game) {
         gl.glClear(GL.GL_COLOR_BUFFER_BIT);
 
         if (settingsBg == null) {
@@ -119,7 +116,7 @@ public class SoundSettingsScreen {
 
         drawTitle(gl);
         drawOptions(gl);
-        drawValues(gl);
+        drawValues(gl, game);
         drawSeparators(gl);
         drawCursor(gl);
     }
@@ -155,13 +152,26 @@ public class SoundSettingsScreen {
         optionRenderer.endRendering();
     }
 
-    private void drawValues(GL gl) {
+    private void drawValues(GL gl, Game game) {
         valueRenderer.beginRendering(1280, 720);
 
         float startY = 180;
         float gap = 70;
         float centerX = (1280 - 400) / 2;
         float valueX = centerX + 450;
+
+        // قراءة القيم الحالية من SoundManager
+        boolean musicEnabled = true;
+        float musicVolume = 1.0f;
+        boolean sfxEnabled = true;
+        float sfxVolume = 1.0f;
+
+        if (game.soundManager != null) {
+            musicEnabled = game.soundManager.isMusicEnabled();
+            musicVolume = game.soundManager.getMusicVolume();
+            sfxEnabled = game.soundManager.isSFXEnabled();
+            sfxVolume = game.soundManager.getSFXVolume();
+        }
 
         drawValue("MUSIC", musicEnabled ? "ON" : "OFF", startY, valueX, musicEnabled ? Color.GREEN : Color.RED);
         drawVolumeBar(musicVolume, startY + gap, valueX);
