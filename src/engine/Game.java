@@ -37,7 +37,7 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
     public String selectedCharacter = "BEE";
     public boolean vsComputer = true;
 
-    public SoundManager soundManager;
+    public static SoundManager soundManager;
     private boolean gameStartSoundPlayed = false;
 
     public void init(GLAutoDrawable d) {
@@ -93,6 +93,8 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
         }
         else {
             if (!gameStartSoundPlayed && gameState == State.PLAYING) {
+                soundManager.stopStartSound();
+                soundManager.playGameBackground();
                 soundManager.playGameStartSound();
                 gameStartSoundPlayed = true;
             }
@@ -127,6 +129,7 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
                     if (p2.defeated) {
                         gameOver = true;
                         winnerName = p1.playerName;
+                        soundManager.playWinSound();
                         resetGameLogic();
                         return;
                     }
@@ -149,6 +152,13 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
                     if (p1.defeated) {
                         gameOver = true;
                         winnerName = p2.playerName;
+
+                        if (vsComputer) {
+                            soundManager.playGameOverSound();
+                        } else {
+                            soundManager.playWinSound();
+                        }
+
                         resetGameLogic();
                         return;
                     }

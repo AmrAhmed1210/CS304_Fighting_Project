@@ -99,6 +99,7 @@ public class Player {
         if (y > 540) y = 540;
 
         if (attack && hitTimer == 0) {
+            engine.Game.soundManager.playShootSound();
             float speed = isPlayer1 ? 5 : -5;
             float sx = x + (isPlayer1 ? 90 : -90);
             float sy = y + 50;
@@ -109,6 +110,7 @@ public class Player {
         }
 
         if (special && hitTimer == 0) {
+            engine.Game.soundManager.playShootSound();
             if (specialCooldown >= 180) {
                 float speed = isPlayer1 ? 7 : -7;
                 float sx = x + (isPlayer1 ? 90 : -90);
@@ -137,7 +139,7 @@ public class Player {
 
     public void takeDamage(int damage, boolean special) {
         if (defeated) return;
-
+        engine.Game.soundManager.playHitSound();
         int d = special ? damage * 2 : damage;
         health -= d;
 
