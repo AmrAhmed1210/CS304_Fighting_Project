@@ -65,7 +65,11 @@ public class SoundManager {
 
 
     public void stopStartSound() { stopClip(startSound); }
-    public void stopGameBackground() { stopClip(gameBackgroundSound); }
+    public void stopGameBackground() {
+        if (gameBackgroundSound != null && gameBackgroundSound.isRunning()) {
+            gameBackgroundSound.stop();
+        }
+    }
 
     public void stopAllSounds() {
         stopClip(startSound);
