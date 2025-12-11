@@ -145,7 +145,7 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
         gl.glClear(GL.GL_COLOR_BUFFER_BIT);
 
         if (gameState == State.SETTINGS) {
-            soundSettingsScreen.draw(gl, loader, mouseX, mouseY);
+            soundSettingsScreen.draw(gl, loader, mouseX, mouseY, this);
             return;
         }
 

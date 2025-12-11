@@ -13,6 +13,12 @@ public class SoundManager {
     private Clip gameOverSound;
     private boolean soundsLoaded = false;
 
+    // متغيرات التحكم في الصوت
+    private float musicVolume = 1.0f;
+    private float sfxVolume = 1.0f;
+    private boolean musicEnabled = true;
+    private boolean sfxEnabled = true;
+
     public SoundManager() {
         loadSounds();
     }
@@ -28,6 +34,10 @@ public class SoundManager {
             gameOverSound = loadClip("assets/Sounds/gameover.wav");
 
             soundsLoaded = true;
+
+            // تطبيق المستويات الحالية على كل المقاطع
+            applyVolumes();
+
         } catch (Exception e) {
             System.err.println("Sound error: " + e.getMessage());
             soundsLoaded = false;
@@ -43,38 +53,139 @@ public class SoundManager {
         return clip;
     }
 
+    // تطبيق المستويات الحجمية على كل المقاطع
+    private void applyVolumes() {
+        setClipVolume(startSound, musicVolume);
+        setClipVolume(gameBackgroundSound, musicVolume);
+        setClipVolume(gameStartSound, sfxVolume);
+        setClipVolume(shootSound, sfxVolume);
+        setClipVolume(hitSound, sfxVolume);
+        setClipVolume(winSound, sfxVolume);
+        setClipVolume(gameOverSound, sfxVolume);
+    }
 
-    public void playStartSound() { playSound(startSound, true); }
-    public void playGameStartSound() { playSound(gameStartSound, false); }
+    private void setClipVolume(Clip clip, float volume) {
+        if (clip == null) return;
+        try {
+            FloatControl gainControl = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
+            float min = gainControl.getMinimum();
+            float max = gainControl.getMaximum();
+
+            // تحويل من 0.0-1.0 إلى dB
+            float dB = (float) (Math.log10(volume) * 20.0);
+            if (dB < min) dB = min;
+            if (dB > max) dB = max;
+
+            gainControl.setValue(dB);
+        } catch (Exception e) {
+            // بعض المقاطع قد لا تدعم التحكم في الصوت
+            System.err.println("Cannot set volume for clip: " + e.getMessage());
+        }
+    }
+
+    // دوال التحكم في الموسيقى
+    public void setMusicEnabled(boolean enabled) {
+        musicEnabled = enabled;
+        if (!enabled) {
+            stopStartSound();
+            stopGameBackground();
+        } else {
+            // إعادة تشغيل الموسيقى إذا كنا في القائمة الرئيسية
+        }
+    }
+
+    public void setMusicVolume(float volume) {
+        musicVolume = volume;
+        if (musicVolume < 0) musicVolume = 0;
+        if (musicVolume > 1) musicVolume = 1;
+
+        // تطبيق الصوت الجديد على مقاطع الموسيقى
+        setClipVolume(startSound, musicVolume);
+        setClipVolume(gameBackgroundSound, musicVolume);
+    }
+
+    // دوال التحكم في المؤثرات
+    public void setSFXEnabled(boolean enabled) {
+        sfxEnabled = enabled;
+    }
+
+    public void setSFXVolume(float volume) {
+        sfxVolume = volume;
+        if (sfxVolume < 0) sfxVolume = 0;
+        if (sfxVolume > 1) sfxVolume = 1;
+
+        // تطبيق الصوت الجديد على مقاطع المؤثرات
+        setClipVolume(gameStartSound, sfxVolume);
+        setClipVolume(shootSound, sfxVolume);
+        setClipVolume(hitSound, sfxVolume);
+        setClipVolume(winSound, sfxVolume);
+        setClipVolume(gameOverSound, sfxVolume);
+    }
+
+    // دوال الحصول على الحالة
+    public boolean isMusicEnabled() { return musicEnabled; }
+    public boolean isSFXEnabled() { return sfxEnabled; }
+    public float getMusicVolume() { return musicVolume; }
+    public float getSFXVolume() { return sfxVolume; }
+
+    // دوال التشغيل مع مراعاة الإعدادات
+    public void playStartSound() {
+        if (musicEnabled) {
+            playSound(startSound, true);
+        }
+    }
+
+    public void playGameStartSound() {
+        if (sfxEnabled) {
+            playSoundOnce(gameStartSound);
+        }
+    }
+
     public void playGameOverSound() {
         stopGameBackground();
-        playSoundOnce(gameOverSound);
+        if (sfxEnabled) {
+            playSoundOnce(gameOverSound);
+        }
     }
+
     public void playGameBackground() {
         stopStartSound();
-        playSound(gameBackgroundSound, true);
+        if (musicEnabled) {
+            playSound(gameBackgroundSound, true);
+        }
     }
 
-    public void playShootSound() { playSoundOnce(shootSound); }
+    public void playShootSound() {
+        if (sfxEnabled) {
+            playSoundOnce(shootSound);
+        }
+    }
 
-    public void playHitSound() { playSoundOnce(hitSound); }
+    public void playHitSound() {
+        if (sfxEnabled) {
+            playSoundOnce(hitSound);
+        }
+    }
+
     public void playWinSound() {
         stopGameBackground();
-        playSoundOnce(winSound);
+        if (sfxEnabled) {
+            playSoundOnce(winSound);
+        }
     }
 
-
     public void stopStartSound() { stopClip(startSound); }
+
     public void stopGameBackground() {
-        if (gameBackgroundSound != null && gameBackgroundSound.isRunning()) {
-            gameBackgroundSound.stop();
-        }
+        stopClip(gameBackgroundSound);
     }
 
     public void stopAllSounds() {
         stopClip(startSound);
         stopClip(gameBackgroundSound);
         stopClip(gameStartSound);
+        stopClip(shootSound);
+        stopClip(hitSound);
         stopClip(winSound);
         stopClip(gameOverSound);
     }
@@ -90,7 +201,9 @@ public class SoundManager {
             clip.setFramePosition(0);
             if (loop) clip.loop(Clip.LOOP_CONTINUOUSLY);
             else clip.start();
-        } catch (Exception e) { System.err.println("Error: " + e.getMessage()); }
+        } catch (Exception e) {
+            System.err.println("Error: " + e.getMessage());
+        }
     }
 
     private void playSoundOnce(Clip clip) {
@@ -99,6 +212,8 @@ public class SoundManager {
             if (clip.isRunning()) clip.stop();
             clip.setFramePosition(0);
             clip.start();
-        } catch (Exception e) { System.err.println("Error: " + e.getMessage()); }
+        } catch (Exception e) {
+            System.err.println("Error: " + e.getMessage());
+        }
     }
 }
