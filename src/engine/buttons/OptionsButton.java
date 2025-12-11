@@ -10,7 +10,6 @@ public class OptionsButton extends Button {
 
     @Override
     public void onClick(Game game) {
-        game.soundManager.stopStartSound();
-        System.out.println("Open Options Screen");
+        game.gameState = Game.State.SETTINGS;
     }
 }

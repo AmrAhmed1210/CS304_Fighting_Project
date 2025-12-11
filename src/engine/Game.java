@@ -12,14 +12,16 @@ import engine.screens.*;
 
 public class Game implements GLEventListener, KeyListener, MouseListener, MouseMotionListener {
 
-    public enum State { MENU, ENTER_NAME, CHARACTER_SELECT, HOW_TO_PLAY, PLAYING }
+    public enum State { MENU, ENTER_NAME, CHARACTER_SELECT, HOW_TO_PLAY, PLAYING, SETTINGS }
     public State gameState = State.MENU;
     public AccountInputScreen inputScreen;
     CharacterSelectScreen characterSelectScreen;
     HowToPlayScreen howToPlayScreen;
+    SoundSettingsScreen soundSettingsScreen;
 
     TextureLoader loader = new TextureLoader();
     Texture bg;
+    Texture menuBg;
 
     MainMenu mainMenu;
 
@@ -54,11 +56,13 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
         gl.glLoadIdentity();
 
         bg = loader.load("background/bg.png");
+        menuBg = loader.load("background/bg_menu.png");
 
         mainMenu = new MainMenu();
         inputScreen = new AccountInputScreen();
         characterSelectScreen = new CharacterSelectScreen();
         howToPlayScreen = new HowToPlayScreen();
+        soundSettingsScreen = new SoundSettingsScreen();
 
         PlayerAnimator a1 = new PlayerAnimator("player1");
         PlayerAnimator a2 = new PlayerAnimator("player2");
@@ -77,9 +81,18 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
     public void display(GLAutoDrawable d) {
         GL gl = d.getGL();
         gl.glClear(GL.GL_COLOR_BUFFER_BIT);
+
+        if (gameState == State.SETTINGS) {
+            soundSettingsScreen.draw(gl, loader, mouseX, mouseY);
+            return;
+        }
+
         gl.glColor3f(1, 1, 1);
 
         if (gameState == State.MENU) {
+            if (menuBg != null) {
+                loader.draw(gl, menuBg, 0, 0, 1280, 720);
+            }
             mainMenu.draw(gl, loader, mouseX, mouseY);
         }
         else if (gameState == State.ENTER_NAME) {
@@ -294,6 +307,11 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
     public void keyPressed(KeyEvent e) {
         int k = e.getKeyCode();
 
+        if (gameState == State.SETTINGS) {
+            soundSettingsScreen.handleInput(k, this);
+            return;
+        }
+
         if (gameState == State.HOW_TO_PLAY) {
             if (k == KeyEvent.VK_ESCAPE) {
                 gameState = State.MENU;
@@ -411,6 +429,15 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
 
     @Override
     public void mouseClicked(MouseEvent e) {
+        if (gameState == State.SETTINGS) {
+            for (Button b : soundSettingsScreen.buttons) {
+                if (b.isInside(mouseX, mouseY)) {
+                    b.onClick(this);
+                }
+            }
+            return;
+        }
+
         if (gameState == State.MENU) {
             for (Button b : mainMenu.buttons) {
                 if (b.isInside(mouseX, mouseY)) {
