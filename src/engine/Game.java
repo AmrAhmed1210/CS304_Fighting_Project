@@ -8,13 +8,12 @@ import com.sun.opengl.util.j2d.TextRenderer;
 import javax.swing.*;
 import java.awt.event.*;
 import java.awt.Font;
-import java.io.*;
-
 import engine.screens.*;
+import java.io.*;
 
 public class Game implements GLEventListener, KeyListener, MouseListener, MouseMotionListener {
 
-    public enum State { MENU, ENTER_NAME, CHARACTER_SELECT, HOW_TO_PLAY, PLAYING, SETTINGS, LEVELS, PAUSE }
+    public enum State { MENU, ENTER_NAME, CHARACTER_SELECT, HOW_TO_PLAY, PLAYING, SETTINGS, LEVELS, PAUSE, LEVEL_COMPLETE }
     public State gameState = State.MENU;
     public AccountInputScreen inputScreen;
     CharacterSelectScreen characterSelectScreen;
@@ -22,6 +21,7 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
     SoundSettingsScreen soundSettingsScreen;
     LevelsScreen levelsScreen;
     PauseMenu pauseMenu;
+    LevelCompleteScreen levelCompleteScreen;
 
     TextureLoader loader = new TextureLoader();
     Texture bg;
@@ -31,7 +31,7 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
 
     public Player p1;
     public Player p2;
-    public AIController aiController;
+    AIController aiController;
     public boolean gameOver = false;
     public String winnerName = "";
     public int winTimer = 0;
@@ -73,6 +73,7 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
         soundSettingsScreen = new SoundSettingsScreen();
         levelsScreen = new LevelsScreen();
         pauseMenu = new PauseMenu();
+        levelCompleteScreen = new LevelCompleteScreen();
 
         loadProgress();
 
@@ -121,6 +122,24 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
         }
     }
 
+    public void restartLevel() {
+        gameOver = false;
+        winnerName = "";
+        winTimer = 0;
+        gameStartSoundPlayed = false;
+
+        if (p1 != null) p1.reset();
+        if (p2 != null) p2.reset();
+
+        resetGameLogic();
+
+        if (aiController != null) {
+            aiController = new AIController(p2, p1, currentLevel);
+        }
+
+        System.out.println("Level " + currentLevel + " restarted!");
+    }
+
     public void display(GLAutoDrawable d) {
         GL gl = d.getGL();
         gl.glClear(GL.GL_COLOR_BUFFER_BIT);
@@ -136,8 +155,12 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
         }
 
         if (gameState == State.PAUSE) {
-            drawGameBackground(gl);
             pauseMenu.draw(gl, loader, mouseX, mouseY);
+            return;
+        }
+
+        if (gameState == State.LEVEL_COMPLETE) {
+            levelCompleteScreen.draw(gl, loader, mouseX, mouseY, currentLevel, maxUnlockedLevel);
             return;
         }
 
@@ -167,39 +190,6 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
             }
             playGame(gl);
         }
-    }
-
-    private void drawGameBackground(GL gl) {
-        Texture levelBg = loader.load("background/bg_level" + currentLevel + ".png");
-        if (levelBg == null) {
-            loader.draw(gl, bg, 0, 0, 1280, 720);
-        } else {
-            loader.draw(gl, levelBg, 0, 0, 1280, 720);
-        }
-
-        // رسم اللاعبين والحانات بدون تحديث
-        p1.drawHealthBar(gl);
-        p2.drawHealthBar(gl);
-        p1.drawPowerBar(gl);
-        p2.drawPowerBar(gl);
-        drawBarLabels(gl);
-
-        p1.draw(gl, loader);
-        p2.draw(gl, loader);
-        drawPlayerNames(gl);
-        drawLevelInfo(gl);
-
-        // جعل الشاشة أغمق قليلاً
-        gl.glDisable(GL.GL_TEXTURE_2D);
-        gl.glColor4f(0, 0, 0, 0.5f);
-        gl.glBegin(GL.GL_QUADS);
-        gl.glVertex2f(0, 0);
-        gl.glVertex2f(1280, 0);
-        gl.glVertex2f(1280, 720);
-        gl.glVertex2f(0, 720);
-        gl.glEnd();
-        gl.glEnable(GL.GL_TEXTURE_2D);
-        gl.glColor3f(1, 1, 1);
     }
 
     public void playGame(GL gl) {
@@ -237,6 +227,7 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
                         soundManager.playWinSound();
                         unlockNextLevel();
                         resetGameLogic();
+                        gameState = State.LEVEL_COMPLETE;
                         return;
                     }
                 }
@@ -284,7 +275,7 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
 
         drawLevelInfo(gl);
 
-        if (gameOver) {
+        if (gameOver && gameState != State.LEVEL_COMPLETE) {
             winTimer++;
             drawWinMessage(gl);
         }
@@ -303,22 +294,6 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
         p2.powers.clear();
         p1.left = p1.right = p1.up = p1.down = false;
         p2.left = p2.right = p2.up = p2.down = false;
-    }
-
-    public void restartLevel() {
-        gameOver = false;
-        winnerName = "";
-        winTimer = 0;
-
-        // إعادة تعيين اللاعبين
-        p1.reset();
-        p2.reset();
-
-        // إعادة تعيين التحكم
-        resetGameLogic();
-
-        // إعادة إنشاء AI controller مع المستوى الحالي
-        aiController = new AIController(p2, p1, currentLevel);
     }
 
     private void drawPlayerNames(GL gl) {
@@ -432,6 +407,11 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
 
         if (gameState == State.PAUSE) {
             pauseMenu.handleInput(k, this);
+            return;
+        }
+
+        if (gameState == State.LEVEL_COMPLETE) {
+            levelCompleteScreen.handleInput(k, this);
             return;
         }
 
@@ -570,6 +550,15 @@ public class Game implements GLEventListener, KeyListener, MouseListener, MouseM
     public void mouseClicked(MouseEvent e) {
         if (gameState == State.PAUSE) {
             for (Button b : pauseMenu.buttons) {
+                if (b.isInside(mouseX, mouseY)) {
+                    b.onClick(this);
+                }
+            }
+            return;
+        }
+
+        if (gameState == State.LEVEL_COMPLETE) {
+            for (Button b : levelCompleteScreen.buttons) {
                 if (b.isInside(mouseX, mouseY)) {
                     b.onClick(this);
                 }
