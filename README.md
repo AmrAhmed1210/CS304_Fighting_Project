@@ -89,19 +89,4 @@ Below are the tools and versions used:
 * JOGL Version: **JOGL 1.1.1**
 
 ---
-
-## 💡 Areas for Review and Improvement
-
-1. **Collision Detection Management:**
-
-   * Review the accuracy of hitbox detection.
-   * Consider a separate class for collision logic.
-2. **Attack Abstraction:**
-
-   * Consider creating base classes for attacks.
-3. **Health Bars:**
-
-   * Ensure clear and consistent rendering.
-4. **Resource Loading:**
-
-   * Improve TextureLoader using caching or Singleton pattern.
+---
